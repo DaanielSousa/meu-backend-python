@@ -48,6 +48,18 @@ def listar():
     conn.close()
     return jsonify(tarefas)
 
+@app.route('/limpar', methods=['DELETE'])
+def limpar_historico():
+    try:
+        conn = sqlite3.connect('tarefas.db')
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM tarefas')
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "sucesso", "mensagem": "Histórico apagado"}), 200
+    except Exception as e:
+        return jsonify({"status": "erro", "mensagem": str(e)}), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
