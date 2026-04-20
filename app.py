@@ -16,6 +16,7 @@ app.config['GOOGLE_CLIENT_SECRET'] = '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'
 CORS(app)
 oauth = OAuth(app)
 
+client_kwargs={'scope': 'openid email profile'}
 # Registro do cliente Google usando as configurações acima
 google = oauth.register(
     name='google',
