@@ -3,112 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Faturamento - Nefrologia</title>
+    <title>Central de Faturamento - CBN</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f0f2f5; }
-        .navbar { background: linear-gradient(90deg, #0d6efd 0%, #003d99 100%); }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .concluida { text-decoration: line-through; color: #6c757d; background-color: #f8f9fa; }
-        .autor-tag { font-size: 0.75rem; color: #0d6efd; font-weight: bold; }
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+        .navbar { background: #003d99; border-bottom: 3px solid #ffc107; }
+        .card { border-radius: 15px; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .concluida { background-color: #e9ecef; opacity: 0.7; text-decoration: line-through; }
+        .autor-tag { color: #003d99; font-weight: bold; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-dark mb-4">
-        <div class="container">
-            <span class="navbar-brand mb-0 h1">📍 Central de Faturamento</span>
-            <div class="d-flex align-items-center">
-                <span class="text-white me-3">Olá, <strong>{{ user_email }}</strong></span>
-                <a href="/logout" class="btn btn-light btn-sm text-primary fw-bold">Sair</a>
+    <nav class="navbar navbar-dark mb-4 p-3">
+        <div class="container d-flex justify-content-between">
+            <span class="navbar-brand h1 m-0">📍 Painel de Controle</span>
+            <div class="text-white">
+                <span class="me-3 small">Logado como: <strong>{{ user_email }}</strong></span>
+                <a href="/logout" class="btn btn-outline-light btn-sm">Sair</a>
             </div>
         </div>
     </nav>
 
     <div class="container">
         <div class="card p-4 mb-4">
-            <h5 class="mb-3 text-secondary">Novo Lembrete / Tarefa</h5>
+            <h6 class="text-uppercase text-muted fw-bold mb-3">Agendar Novo Alerta</h6>
             <div class="row g-2">
-                <div class="col-md-6">
-                    <input type="text" id="nova-tarefa" class="form-control" placeholder="Descrição da tarefa...">
-                </div>
-                <div class="col-md-4">
-                    <input type="datetime-local" id="data-tarefa" class="form-control">
-                </div>
-                <div class="col-md-2">
-                    <button onclick="adicionarTarefa()" class="btn btn-primary w-100">Adicionar</button>
-                </div>
+                <div class="col-md-6"><input type="text" id="nova-tarefa" class="form-control" placeholder="Descrição..."></div>
+                <div class="col-md-4"><input type="datetime-local" id="data-tarefa" class="form-control"></div>
+                <div class="col-md-2"><button onclick="adicionarTarefa()" class="btn btn-primary w-100 fw-bold">SALVAR</button></div>
             </div>
         </div>
 
-        <div class="card p-4">
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th width="50">Status</th>
-                            <th>Tarefa</th>
-                            <th>Data/Hora</th>
-                            <th>Autor</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tabela-tarefas"></tbody>
-                </table>
+        <div class="row">
+            <div class="col-md-7">
+                <div class="card p-3 mb-4 border-top border-primary border-4">
+                    <h5 class="fw-bold text-primary mb-3">⏳ PENDENTES / ALERTAS</h5>
+                    <div id="lista-ativas"></div>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="card p-3 border-top border-secondary border-4">
+                    <h5 class="fw-bold text-secondary mb-3">✅ CONCLUÍDAS</h5>
+                    <div id="lista-historico"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        async function carregarTarefas() {
-            const response = await fetch('/listar');
-            const tarefas = await response.json();
-            const tabela = document.getElementById('tabela-tarefas');
-            tabela.innerHTML = ''; 
+        let alertasVistos = new Set();
+
+        async function carregar() {
+            const resp = await fetch('/listar');
+            const tarefas = await resp.json();
+            const ativas = document.getElementById('lista-ativas');
+            const historico = document.getElementById('lista-historico');
+            
+            ativas.innerHTML = ''; historico.innerHTML = '';
+            
+            const agora = new Date().toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}).replace(',', '');
 
             tarefas.forEach(t => {
-                const rowClass = t.status === 1 ? 'concluida' : '';
-                const isChecked = t.status === 1 ? 'checked' : '';
-                tabela.innerHTML += `
-                    <tr class="${rowClass}">
-                        <td><input type="checkbox" class="form-check-input" ${isChecked} onclick="toggleStatus(${t.id}, this.checked)"></td>
-                        <td>${t.tarefa}</td>
-                        <td class="text-muted small">${t.data}</td>
-                        <td><span class="autor-tag text-uppercase">${t.autor.split('@')[0]}</span></td>
-                    </tr>
+                const itemHtml = `
+                    <div class="d-flex align-items-center p-2 mb-2 border-bottom ${t.status === 1 ? 'concluida' : ''}">
+                        <input type="checkbox" class="form-check-input me-3" ${t.status === 1 ? 'checked' : ''} onclick="toggle(${t.id}, this.checked)">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">${t.tarefa}</div>
+                            <small class="text-muted">${t.data} | <span class="autor-tag">${t.autor.split('@')[0]}</span></small>
+                        </div>
+                    </div>
                 `;
+
+                if (t.status === 0) {
+                    ativas.innerHTML += itemHtml;
+                    // Lógica do Alerta
+                    if (t.data === agora && !alertasVistos.has(t.id)) {
+                        dispararSom(t.tarefa);
+                        alertasVistos.add(t.id);
+                    }
+                } else {
+                    historico.innerHTML += itemHtml;
+                }
             });
         }
 
-        async function adicionarTarefa() {
-            const inputT = document.getElementById('nova-tarefa');
-            const inputD = document.getElementById('data-tarefa');
-            
-            if (!inputT.value) return alert("Digite a tarefa!");
+        function dispararSom(msg) {
+            const audio = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1148-vibrant.mp3');
+            audio.play().catch(() => console.log("Clique na página para habilitar o áudio."));
+            alert("⏰ AGORA: " + msg);
+        }
 
-            const dataFormatada = inputD.value ? new Date(inputD.value).toLocaleString('pt-BR') : new Date().toLocaleString('pt-BR');
+        async function adicionarTarefa() {
+            const t = document.getElementById('nova-tarefa');
+            const d = document.getElementById('data-tarefa');
+            if(!t.value || !d.value) return alert("Preencha tudo!");
+
+            const dataFormatada = new Date(d.value).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}).replace(',', '');
 
             await fetch('/salvar', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ tarefa: inputT.value, data: dataFormatada })
+                body: JSON.stringify({ tarefa: t.value, data: dataFormatada })
             });
-
-            inputT.value = '';
-            inputD.value = '';
-            carregarTarefas();
+            t.value = ''; d.value = ''; carregar();
         }
 
-        async function toggleStatus(id, checked) {
+        async function toggle(id, check) {
             await fetch(`/atualizar_status/${id}`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ status: checked ? 1 : 0 })
+                body: JSON.stringify({ status: check ? 1 : 0 })
             });
-            carregarTarefas();
+            carregar();
         }
 
-        carregarTarefas();
-        setInterval(carregarTarefas, 10000);
+        carregar();
+        setInterval(carregar, 20000); // Atualiza a cada 20 seg
     </script>
 </body>
 </html>
