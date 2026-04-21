@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Central de Faturamento - CBN</title>
+    <title>Gestão Faturamento CBN</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
@@ -16,10 +16,10 @@
 <body>
 
     <nav class="navbar navbar-dark mb-4 p-3">
-        <div class="container d-flex justify-content-between">
-            <span class="navbar-brand h1 m-0">📍 Painel de Controle</span>
+        <div class="container d-flex justify-content-between align-items-center">
+            <span class="navbar-brand h4 m-0">📍 Central de Faturamento</span>
             <div class="text-white">
-                <span class="me-3 small">Logado como: <strong>{{ user_email }}</strong></span>
+                <span class="me-3 small d-none d-md-inline">Logado: <strong>{{ user_email }}</strong></span>
                 <a href="/logout" class="btn btn-outline-light btn-sm">Sair</a>
             </div>
         </div>
@@ -27,9 +27,9 @@
 
     <div class="container">
         <div class="card p-4 mb-4">
-            <h6 class="text-uppercase text-muted fw-bold mb-3">Agendar Novo Alerta</h6>
+            <h6 class="text-uppercase text-muted fw-bold mb-3">Novo Lembrete de Faturamento</h6>
             <div class="row g-2">
-                <div class="col-md-6"><input type="text" id="nova-tarefa" class="form-control" placeholder="Descrição..."></div>
+                <div class="col-md-6"><input type="text" id="nova-tarefa" class="form-control" placeholder="O que agendar?"></div>
                 <div class="col-md-4"><input type="datetime-local" id="data-tarefa" class="form-control"></div>
                 <div class="col-md-2"><button onclick="adicionarTarefa()" class="btn btn-primary w-100 fw-bold">SALVAR</button></div>
             </div>
@@ -37,14 +37,14 @@
 
         <div class="row">
             <div class="col-md-7">
-                <div class="card p-3 mb-4 border-top border-primary border-4">
-                    <h5 class="fw-bold text-primary mb-3">⏳ PENDENTES / ALERTAS</h5>
+                <div class="card p-3 mb-4 border-top border-warning border-4">
+                    <h5 class="fw-bold text-warning mb-3">⏳ PENDENTES / ALERTAS</h5>
                     <div id="lista-ativas"></div>
                 </div>
             </div>
             <div class="col-md-5">
-                <div class="card p-3 border-top border-secondary border-4">
-                    <h5 class="fw-bold text-secondary mb-3">✅ CONCLUÍDAS</h5>
+                <div class="card p-3 border-top border-success border-4">
+                    <h5 class="fw-bold text-success mb-3">✅ CONCLUÍDAS</h5>
                     <div id="lista-historico"></div>
                 </div>
             </div>
@@ -55,49 +55,65 @@
         let alertasVistos = new Set();
 
         async function carregar() {
-            const resp = await fetch('/listar');
-            const tarefas = await resp.json();
-            const ativas = document.getElementById('lista-ativas');
-            const historico = document.getElementById('lista-historico');
-            
-            ativas.innerHTML = ''; historico.innerHTML = '';
-            
-            const agora = new Date().toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}).replace(',', '');
+            try {
+                const resp = await fetch('/listar');
+                const tarefas = await resp.json();
+                const ativas = document.getElementById('lista-ativas');
+                const historico = document.getElementById('lista-historico');
+                
+                ativas.innerHTML = ''; historico.innerHTML = '';
+                
+                const agora = new Date().toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}).replace(',', '');
 
-            tarefas.forEach(t => {
-                const itemHtml = `
-                    <div class="d-flex align-items-center p-2 mb-2 border-bottom ${t.status === 1 ? 'concluida' : ''}">
-                        <input type="checkbox" class="form-check-input me-3" ${t.status === 1 ? 'checked' : ''} onclick="toggle(${t.id}, this.checked)">
-                        <div class="flex-grow-1">
-                            <div class="fw-bold">${t.tarefa}</div>
-                            <small class="text-muted">${t.data} | <span class="autor-tag">${t.autor.split('@')[0]}</span></small>
+                tarefas.forEach(t => {
+                    const itemHtml = `
+                        <div class="d-flex align-items-center p-2 mb-2 border-bottom ${t.status === 1 ? 'concluida' : ''}">
+                            <input type="checkbox" class="form-check-input me-3" ${t.status === 1 ? 'checked' : ''} onclick="toggle(${t.id}, this.checked)">
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">${t.tarefa}</div>
+                                <small class="text-muted">${t.data} | <span class="autor-tag">${t.autor.split('@')[0]}</span></small>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
 
-                if (t.status === 0) {
-                    ativas.innerHTML += itemHtml;
-                    // Lógica do Alerta
-                    if (t.data === agora && !alertasVistos.has(t.id)) {
-                        dispararSom(t.tarefa);
-                        alertasVistos.add(t.id);
+                    if (t.status === 0) {
+                        // Verifica se chegou o horário
+                        if (t.data === agora && !alertasVistos.has(t.id)) {
+                            alertasVistos.add(t.id);
+                            dispararAlertaAutomatico(t.tarefa, t.id);
+                        } else {
+                            ativas.innerHTML += itemHtml;
+                        }
+                    } else {
+                        historico.innerHTML += itemHtml;
                     }
-                } else {
-                    historico.innerHTML += itemHtml;
-                }
-            });
+                });
+            } catch (e) { console.log("Erro ao carregar dados."); }
         }
 
-        function dispararSom(msg) {
+        async function dispararAlertaAutomatico(msg, id) {
+            // 1. Toca som
             const audio = new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1148-vibrant.mp3');
-            audio.play().catch(() => console.log("Clique na página para habilitar o áudio."));
-            alert("⏰ AGORA: " + msg);
+            audio.play().catch(() => console.log("Clique na página para ativar áudio."));
+            
+            // 2. Alerta visual (trava o código até dar OK)
+            alert("⏰ HORA DO FATURAMENTO: " + msg);
+
+            // 3. Move para concluído no Banco de Dados automaticamente
+            await fetch(`/atualizar_status/${id}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ status: 1 })
+            });
+
+            // 4. Recarrega a visualização
+            carregar();
         }
 
         async function adicionarTarefa() {
             const t = document.getElementById('nova-tarefa');
             const d = document.getElementById('data-tarefa');
-            if(!t.value || !d.value) return alert("Preencha tudo!");
+            if(!t.value || !d.value) return alert("Preencha descrição e data!");
 
             const dataFormatada = new Date(d.value).toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}).replace(',', '');
 
@@ -119,7 +135,7 @@
         }
 
         carregar();
-        setInterval(carregar, 20000); // Atualiza a cada 20 seg
+        setInterval(carregar, 15000); // Atualiza a cada 15 seg
     </script>
 </body>
 </html>
