@@ -25,11 +25,19 @@ def conectar_bd():
     return sqlite3.connect('tarefas.db')
 
 def init_db():
+   def init_db():
     with conectar_bd() as conn:
-        # ADICIONE ESTA LINHA ABAIXO (Temporária):
+        # Esta é a linha que você vai adicionar (Linha 30):
         conn.execute('DROP TABLE IF EXISTS tarefas') 
         
-        # O seu código que já está aí continua abaixo:
+        # O restante do código que já estava aí:
+        
+        conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                         tarefa TEXT, 
+                         data TEXT, 
+                         status INTEGER DEFAULT 0,
+                         autor TEXT)''')
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                          tarefa TEXT, 
