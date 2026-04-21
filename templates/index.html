@@ -3,35 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Painel de Faturamento - Nefrologia</title>
+    <title>Gestão de Faturamento - Nefrologia</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f4f7f6; }
-        .navbar { background-color: #0d6efd; }
-        .card { border: none; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        body { background-color: #f0f2f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar { background: linear-gradient(90deg, #0d6efd 0%, #003d99 100%); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .concluida { text-decoration: line-through; color: #6c757d; background-color: #f8f9fa; }
+        .status-badge { font-size: 0.8rem; padding: 4px 8px; border-radius: 20px; }
+        .autor-tag { font-size: 0.75rem; color: #0d6efd; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <nav class="navbar navbar-dark mb-4">
         <div class="container">
-            <span class="navbar-brand mb-0 h1">Sistema de Faturamento</span>
+            <span class="navbar-brand mb-0 h1">📍 Central de Faturamento</span>
             <div class="d-flex align-items-center">
-                <span class="text-white me-3">Logado como: <strong>{{ user_email }}</strong></span>
-                <a href="/logout" class="btn btn-outline-light btn-sm">Sair</a>
+                <span class="text-white me-3 d-none d-md-inline">Olá, <strong>{{ user_email }}</strong></span>
+                <a href="/logout" class="btn btn-light btn-sm text-primary fw-bold">Sair</a>
             </div>
         </div>
     </nav>
 
     <div class="container">
+        <div class="card p-4 mb-4">
+            <h5 class="mb-3 text-secondary">Novo Lembrete / Tarefa</h5>
+            <div class="row g-2">
+                <div class="col-md-9">
+                    <input type="text" id="nova-tarefa" class="form-control form-control-lg" placeholder="Ex: Conferir guias da Unimed que vencem hoje...">
+                </div>
+                <div class="col-md-3">
+                    <button onclick="adicionarTarefa()" class="btn btn-primary btn-lg w-100">Adicionar</button>
+                </div>
+            </div>
+        </div>
+
         <div class="card p-4">
-            <h4 class="mb-4 text-primary">Histórico de Atividades (Extensão)</h4>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="text-secondary m-0">Atividades da Equipe</h5>
+                <button onclick="carregarTarefas()" class="btn btn-outline-secondary btn-sm">Atualizar Agora</button>
+            </div>
+            
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Tarefa / Procedimento</th>
-                            <th>Data e Hora</th>
+                            <th width="50">Status</th>
+                            <th>Descrição da Atividade</th>
+                            <th>Data/Hora</th>
+                            <th>Autor</th>
                         </tr>
                     </thead>
                     <tbody id="tabela-tarefas">
@@ -42,30 +63,61 @@
     </div>
 
     <script>
-        // Função que busca as tarefas no seu servidor Render
         async function carregarTarefas() {
             try {
                 const response = await fetch('/listar');
                 const tarefas = await response.json();
                 const tabela = document.getElementById('tabela-tarefas');
-                
                 tabela.innerHTML = ''; 
+
                 tarefas.forEach(t => {
+                    const rowClass = t.status === 1 ? 'concluida' : '';
+                    const isChecked = t.status === 1 ? 'checked' : '';
+                    
                     tabela.innerHTML += `
-                        <tr>
+                        <tr class="${rowClass}">
+                            <td>
+                                <input type="checkbox" class="form-check-input" ${isChecked} 
+                                       onclick="toggleStatus(${t.id}, this.checked)">
+                            </td>
                             <td>${t.tarefa}</td>
-                            <td>${t.data}</td>
+                            <td class="text-muted" style="font-size: 0.85rem">${t.data}</td>
+                            <td><span class="autor-tag text-uppercase">${t.autor.split('@')[0]}</span></td>
                         </tr>
                     `;
                 });
-            } catch (error) {
-                console.error("Erro ao carregar tarefas:", error);
-            }
+            } catch (e) { console.error("Erro ao carregar:", e); }
         }
 
-        // Atualiza a lista a cada 10 segundos
+        async function adicionarTarefa() {
+            const input = document.getElementById('nova-tarefa');
+            const texto = input.value;
+            if (!texto) return;
+
+            const agora = new Date().toLocaleString('pt-BR');
+            await fetch('/salvar', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ tarefa: texto, data: agora })
+            });
+
+            input.value = '';
+            carregarTarefas();
+        }
+
+        async function toggleStatus(id, isChecked) {
+            const status = isChecked ? 1 : 0;
+            await fetch(\`/atualizar_status/\${id}\`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ status: status })
+            });
+            carregarTarefas(); // Atualiza a lista para aplicar o estilo de riscado
+        }
+
+        // Atualiza automaticamente a cada 15 segundos para ver mudanças da equipe
         carregarTarefas();
-        setInterval(carregarTarefas, 10000);
+        setInterval(carregarTarefas, 15000);
     </script>
 </body>
 </html>
