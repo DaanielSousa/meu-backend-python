@@ -26,7 +26,8 @@ def conectar_bd():
 
 def init_db():
     with conectar_bd() as conn:
-        # ATENÇÃO: Esta linha reseta o banco para ativar as novas colunas (status e autor)
+        # ATENÇÃO: Esta linha reseta o banco para ativar as novas colunas. 
+        # Apague-a após o primeiro uso bem-sucedido.
         conn.execute('DROP TABLE IF EXISTS tarefas') 
         
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
