@@ -56,12 +56,12 @@ def home():
 
 @app.route('/login')
 def login():
-    # Gera a URL de redirecionamento que você configurou no Google Cloud
-    redirect_uri = url_for('auth', _external=True)
+    # Deixe apenas esta linha abaixo, apague a que estiver repetida
+    redirect_uri = url_for('authorize', _external=True, _scheme='https')
     return google.authorize_redirect(redirect_uri)
-
-@app.route('/login/callback')
-def auth():
+    
+@app.route('/authorize')
+def authorize():
     token = google.authorize_access_token()
     # Pega os dados do usuário logado via API do Google
     resp = google.get('https://www.googleapis.com/oauth2/v1/userinfo')
