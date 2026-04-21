@@ -25,7 +25,7 @@ def conectar_bd():
 
 def init_db():
     with conectar_bd() as conn:
-        # Se as tabelas já funcionam, você pode comentar a linha abaixo com um #
+        # Se precisar resetar o banco, remova o '#' da linha abaixo:
         # conn.execute('DROP TABLE IF EXISTS tarefas') 
         
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
