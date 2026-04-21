@@ -25,19 +25,10 @@ def conectar_bd():
     return sqlite3.connect('tarefas.db')
 
 def init_db():
-   def init_db():
     with conectar_bd() as conn:
-        # Esta é a linha que você vai adicionar (Linha 30):
+        # ATENÇÃO: Esta linha reseta o banco para ativar as novas colunas (status e autor)
         conn.execute('DROP TABLE IF EXISTS tarefas') 
         
-        # O restante do código que já estava aí:
-        
-        conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
-                        (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                         tarefa TEXT, 
-                         data TEXT, 
-                         status INTEGER DEFAULT 0,
-                         autor TEXT)''')
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                          tarefa TEXT, 
@@ -62,7 +53,6 @@ def home():
 
 @app.route('/login')
 def login():
-    # Ajustado para usar o redirect_uri que funcionou anteriormente
     redirect_uri = url_for('authorize', _external=True, _scheme='https')
     return google.authorize_redirect(redirect_uri)
 
@@ -82,7 +72,7 @@ def authorize():
         session['user'] = email
         return redirect(url_for('painel'))
     else:
-        return f"Acesso Negado! O e-mail {email} não tem permissão.", 403
+        return f"Acesso Negado!", 403
 
 @app.route('/logout')
 def logout():
@@ -95,14 +85,11 @@ def painel():
         return redirect(url_for('home'))
     return render_template('index.html', user_email=session['user'])
 
-# --- API ATUALIZADA ---
-
 @app.route('/salvar', methods=['POST'])
 def salvar():
     dados = request.json
     tarefa = dados.get('tarefa')
     data = dados.get('data')
-    # Se vier da extensão, o autor é "Extensão", se vier do painel, usamos o e-mail
     autor = session.get('user', 'Extensão')
     
     if tarefa and data:
@@ -118,14 +105,12 @@ def listar():
         return jsonify({"erro": "Não autorizado"}), 401
     with conectar_bd() as conn:
         cursor = conn.cursor()
-        # Buscamos o ID e o STATUS também agora
         cursor.execute('SELECT id, tarefa, data, status, autor FROM tarefas ORDER BY status ASC, id DESC')
         tarefas = cursor.fetchall()
     
     lista = [{"id": t[0], "tarefa": t[1], "data": t[2], "status": t[3], "autor": t[4]} for t in tarefas]
     return jsonify(lista)
 
-# NOVA ROTA: Para mudar o status (Checkbox)
 @app.route('/atualizar_status/<int:id>', methods=['POST'])
 def atualizar_status(id):
     if 'user' not in session: return jsonify({"erro": "Não autorizado"}), 401
