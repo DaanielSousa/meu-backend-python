@@ -7,7 +7,6 @@ from authlib.integrations.flask_client import OAuth
 app = Flask(__name__)
 app.secret_key = "faturamento_secreto_da_nefrologia_2026_daniel"
 
-# CONFIGURAÇÃO DO GOOGLE
 app.config['GOOGLE_CLIENT_ID'] = '774732337954-g13r0dn7ercb1a8a2o602f0cckvqu06f.apps.googleusercontent.com'
 app.config['GOOGLE_CLIENT_SECRET'] = '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'
 
@@ -26,9 +25,8 @@ def conectar_bd():
 
 def init_db():
     with conectar_bd() as conn:
-        # ATENÇÃO: Esta linha reseta o banco para ativar as novas colunas. 
-        # Apague-a após o primeiro uso bem-sucedido.
-        conn.execute('DROP TABLE IF EXISTS tarefas') 
+        # Se as tabelas já funcionam, você pode comentar a linha abaixo com um #
+        # conn.execute('DROP TABLE IF EXISTS tarefas') 
         
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -48,8 +46,7 @@ init_db()
 
 @app.route('/')
 def home():
-    if 'user' in session:
-        return redirect(url_for('painel'))
+    if 'user' in session: return redirect(url_for('painel'))
     return render_template('login.html')
 
 @app.route('/login')
@@ -63,17 +60,13 @@ def authorize():
     resp = google.get('https://www.googleapis.com/oauth2/v1/userinfo')
     user_info = resp.json()
     email = user_info.get('email')
-
     with conectar_bd() as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT email FROM usuarios WHERE email = ?', (email,))
-        usuario_autorizado = cursor.fetchone()
-
-    if usuario_autorizado:
-        session['user'] = email
-        return redirect(url_for('painel'))
-    else:
-        return f"Acesso Negado!", 403
+        if cursor.fetchone():
+            session['user'] = email
+            return redirect(url_for('painel'))
+    return "Acesso Negado!", 403
 
 @app.route('/logout')
 def logout():
@@ -82,8 +75,7 @@ def logout():
 
 @app.route('/painel')
 def painel():
-    if 'user' not in session:
-        return redirect(url_for('home'))
+    if 'user' not in session: return redirect(url_for('home'))
     return render_template('index.html', user_email=session['user'])
 
 @app.route('/salvar', methods=['POST'])
@@ -92,7 +84,6 @@ def salvar():
     tarefa = dados.get('tarefa')
     data = dados.get('data')
     autor = session.get('user', 'Extensão')
-    
     if tarefa and data:
         with conectar_bd() as conn:
             conn.execute('INSERT INTO tarefas (tarefa, data, autor) VALUES (?, ?, ?)', (tarefa, data, autor))
@@ -102,15 +93,12 @@ def salvar():
 
 @app.route('/listar', methods=['GET'])
 def listar():
-    if 'user' not in session:
-        return jsonify({"erro": "Não autorizado"}), 401
+    if 'user' not in session: return jsonify({"erro": "Não autorizado"}), 401
     with conectar_bd() as conn:
         cursor = conn.cursor()
-        cursor.execute('SELECT id, tarefa, data, status, autor FROM tarefas ORDER BY status ASC, id DESC')
+        cursor.execute('SELECT id, tarefa, data, status, autor FROM tarefas ORDER BY id DESC')
         tarefas = cursor.fetchall()
-    
-    lista = [{"id": t[0], "tarefa": t[1], "data": t[2], "status": t[3], "autor": t[4]} for t in tarefas]
-    return jsonify(lista)
+    return jsonify([{"id": t[0], "tarefa": t[1], "data": t[2], "status": t[3], "autor": t[4]} for t in tarefas])
 
 @app.route('/atualizar_status/<int:id>', methods=['POST'])
 def atualizar_status(id):
