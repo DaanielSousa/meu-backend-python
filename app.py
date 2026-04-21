@@ -26,7 +26,10 @@ def conectar_bd():
 
 def init_db():
     with conectar_bd() as conn:
-        # ALTERAÇÃO AQUI: Adicionamos a coluna 'status' e 'autor'
+        # ADICIONE ESTA LINHA ABAIXO (Temporária):
+        conn.execute('DROP TABLE IF EXISTS tarefas') 
+        
+        # O seu código que já está aí continua abaixo:
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                          tarefa TEXT, 
