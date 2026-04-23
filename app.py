@@ -7,7 +7,6 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = "cbn_faturamento_segredo_2026"
-
 CORS(app)
 
 def conectar_bd():
@@ -15,17 +14,12 @@ def conectar_bd():
 
 def init_db():
     with conectar_bd() as conn:
-        # Tabela de Tarefas
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, tarefa TEXT, data TEXT, status INTEGER DEFAULT 0, autor TEXT, responsavel_id INTEGER)''')
-        # Tabela de Equipe (Login Interno)
         conn.execute('''CREATE TABLE IF NOT EXISTS equipe 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, email TEXT UNIQUE, whatsapp TEXT, senha TEXT)''')
-        # Tabela de Médicos (Para cobrança recorrente)
         conn.execute('''CREATE TABLE IF NOT EXISTS medicos 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, crm TEXT, whatsapp TEXT)''')
-        
-        # Usuário Admin Inicial (Login: admin / Senha: 123)
         conn.execute('INSERT OR IGNORE INTO equipe (nome, email, whatsapp, senha) VALUES (?, ?, ?, ?)', 
                      ('Daniel Admin', 'admin', '61900000000', '123'))
         conn.commit()
@@ -35,7 +29,7 @@ init_db()
 @app.route('/')
 def home():
     if 'user' in session: return redirect(url_for('painel'))
-    return render_template('login_local.html')
+    return render_template('login.html')
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -57,9 +51,8 @@ def logout():
 @app.route('/painel')
 def painel():
     if 'user' not in session: return redirect(url_for('home'))
-    return render_template('index_local.html', user_email=session['user'])
+    return render_template('index.html', user_nome=session['user'])
 
-# --- MÓDULO DE TAREFAS ---
 @app.route('/salvar', methods=['POST'])
 def salvar():
     d = request.json
@@ -85,7 +78,6 @@ def atualizar_status(id):
         conn.commit()
     return jsonify({"status": "sucesso"})
 
-# --- MÓDULO DE MÉDICOS ---
 @app.route('/cadastrar_medico', methods=['POST'])
 def cadastrar_medico():
     d = request.json
@@ -101,15 +93,30 @@ def listar_medicos():
         c.execute('SELECT id, nome, crm, whatsapp FROM medicos')
         return jsonify([{"id":m[0],"nome":m[1],"crm":m[2],"zap":m[3]} for m in c.fetchall()])
 
-# --- IA DE DATAS ---
+@app.route('/cadastrar_equipe', methods=['POST'])
+def cadastrar_equipe():
+    d = request.json
+    with conectar_bd() as conn:
+        conn.execute('INSERT INTO equipe (nome, email, whatsapp, senha) VALUES (?, ?, ?, ?)', 
+                     (d['nome'], d['usuario'], d['whatsapp'], d['senha']))
+        conn.commit()
+    return jsonify({"status": "sucesso"})
+
+@app.route('/listar_equipe')
+def listar_equipe():
+    with conectar_bd() as conn:
+        c = conn.cursor()
+        c.execute('SELECT id, nome FROM equipe')
+        return jsonify([{"id": e[0], "nome": e[1]} for e in c.fetchall()])
+
 @app.route('/verificar_data', methods=['POST'])
 def verificar_data():
     data_str = request.json.get('data')
     dt = datetime.strptime(data_str, '%Y-%m-%dT%H:%M')
     br_holidays = holidays.BR()
     res = {"mensagem": ""}
-    if dt.date() in br_holidays: res = {"mensagem": f"Atenção: Feriado ({br_holidays.get(dt.date())})"}
-    elif dt.weekday() >= 5: res = {"mensagem": "Atenção: Final de semana."}
+    if dt.date() in br_holidays: res = {"mensagem": f"Feriado: {br_holidays.get(dt.date())}"}
+    elif dt.weekday() >= 5: res = {"mensagem": "Final de semana."}
     return jsonify(res)
 
 if __name__ == '__main__':
