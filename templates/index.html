@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestão CBN - Faturamento</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .concluida { background: #f8f9fa; opacity: 0.6; text-decoration: line-through; }
+        .header-cbn { background: #003d99; color: white; border-bottom: 4px solid #ffc107; padding: 15px; }
+        .secao-medico { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 10px; padding: 15px; }
+        .sessao-config { background: #e9ecef; border-radius: 10px; padding: 20px; margin-top: 30px; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="header-cbn mb-4">
+        <div class="container d-flex justify-content-between align-items-center">
+            <h4 class="m-0">📍 Painel Integral - CBN</h4>
+            <div><span id="user-nome">Daniel Admin</span> | <a href="/logout" class="btn btn-sm btn-outline-light">Sair</a></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card p-4 mb-4 shadow-sm">
+                    <h6 class="fw-bold text-primary">📤 ENVIAR TAREFA (PAINEL OU EXTENSÃO)</h6>
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="Descrição da tarefa..."></div>
+                        <div class="col-md-3"><input type="datetime-local" id="t-data" class="form-control" onchange="validarData(this.value)"></div>
+                        <div class="col-md-3">
+                            <select id="t-resp" class="form-select">
+                                <option value="">Responsável</option>
+                                </select>
+                        </div>
+                        <div class="col-md-12 text-end mt-2"><button onclick="salvarTarefa()" class="btn btn-primary px-4">ENVIAR E MONITORAR</button></div>
+                    </div>
+                </div>
+
+                <div class="card p-3 shadow-sm">
+                    <h6 class="fw-bold mb-3">📋 ACOMPANHAMENTO DE EXECUÇÃO</h6>
+                    <table class="table align-middle small">
+                        <thead><tr><th>Status</th><th>Tarefa</th><th>Prazo</th><th>Resp.</th><th>Ação</th></tr></thead>
+                        <tbody id="corpo-tarefas"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="secao-medico shadow-sm mb-4">
+                    <h6 class="fw-bold text-warning-emphasis">🩺 COBRANÇA DE MÉDICOS</h6>
+                    <div id="lista-medicos-cobranca" class="mt-3">
+                        <p class="text-muted small">Nenhum médico cadastrado.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="sessao-config shadow-sm">
+            <h5 class="fw-bold mb-4">⚙️ GESTÃO DO SISTEMA (CADASTROS)</h5>
+            <div class="row">
+                <div class="col-md-6 border-end">
+                    <h6>👥 Cadastrar Equipe (Val, Karol, etc.)</h6>
+                    <input type="text" id="eq-nome" class="form-control mb-2" placeholder="Nome Completo">
+                    <input type="text" id="eq-user" class="form-control mb-2" placeholder="Usuário de Login">
+                    <input type="password" id="eq-senha" class="form-control mb-2" placeholder="Senha">
+                    <input type="text" id="eq-zap" class="form-control mb-2" placeholder="WhatsApp (só números)">
+                    <button onclick="cadastrarEquipe()" class="btn btn-sm btn-secondary w-100">Salvar Membro</button>
+                </div>
+                <div class="col-md-6">
+                    <h6>🩺 Cadastrar Novo Médico</h6>
+                    <input type="text" id="med-nome" class="form-control mb-2" placeholder="Nome do Médico">
+                    <input type="text" id="med-crm" class="form-control mb-2" placeholder="CRM">
+                    <input type="text" id="med-zap" class="form-control mb-2" placeholder="WhatsApp (só números)">
+                    <button onclick="cadastrarMedico()" class="btn btn-sm btn-warning w-100">Salvar Médico</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function validarData(v) {
+            const r = await fetch('/verificar_data', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:v})});
+            const d = await r.json();
+            if(d.mensagem) alert("🗓️ IA: " + d.mensagem);
+        }
+
+        async function carregarTudo() {
+            // Carregar Tarefas
+            const rT = await fetch('/listar');
+            const tarefas = await rT.json();
+            const corpo = document.getElementById('corpo-tarefas');
+            corpo.innerHTML = '';
+            tarefas.forEach(t => {
+                const isC = t.status === 1;
+                corpo.innerHTML += `<tr class="${isC?'concluida':''}">
+                    <td><input type="checkbox" ${isC?'checked':''} onclick="status(${t.id}, ${isC?0:1})"></td>
+                    <td><b>${t.tarefa}</b><br><small>Por: ${t.autor}</small></td>
+                    <td>${t.data}</td>
+                    <td><span class="badge bg-secondary">${t.nome_resp || 'Geral'}</span></td>
+                    <td>${!isC && t.zap_resp ? `<button onclick="zap('${t.zap_resp}', '${t.tarefa}')" class="btn btn-sm btn-success">Zap</button>` : ''}</td>
+                </tr>`;
+            });
+
+            // Carregar Médicos na Cobrança
+            const rM = await fetch('/listar_medicos');
+            const medicos = await rM.json();
+            const divM = document.getElementById('lista-medicos-cobranca');
+            if(medicos.length > 0) divM.innerHTML = '';
+            medicos.forEach(m => {
+                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center shadow-sm">
+                    <small><b>Dr. ${m.nome}</b><br>CRM: ${m.crm}</small>
+                    <button onclick="zapMedico('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary">Solicitar</button>
+                </div>`;
+            });
+
+            // Preencher Select de Responsáveis (para o formulário de tarefas)
+            // Aqui você pode adicionar lógica para listar a equipe dinamicamente se quiser
+        }
+
+        async function cadastrarMedico() {
+            const d = {nome: document.getElementById('med-nome').value, crm: document.getElementById('med-crm').value, whatsapp: document.getElementById('med-zap').value};
+            await fetch('/cadastrar_medico', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
+            alert("Médico cadastrado com sucesso!");
+            location.reload();
+        }
+
+        async function cadastrarEquipe() {
+            // Esta rota precisa existir no seu app.py para salvar na tabela equipe
+            alert("Funcionalidade de cadastro de equipe acionada!");
+        }
+
+        async function salvarTarefa() {
+            const val = document.getElementById('t-data').value;
+            const d = {
+                tarefa: document.getElementById('t-nome').value, 
+                data: val ? new Date(val).toLocaleString('pt-BR').replace(',','') : '', 
+                responsavel_id: document.getElementById('t-resp').value
+            };
+            await fetch('/salvar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
+            location.reload();
+        }
+
+        function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent('🚨 Alerta CBN: ' + m)}`, '_blank'); }
+        function zapMedico(n, nome) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent('Prezado Dr. ' + nome + ', solicitamos o envio do relatório mensal de produção para o faturamento CBN. Atenciosamente, Daniel.')}`, '_blank'); }
+        async function status(id, s) { await fetch(`/atualizar_status/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
+
+        carregarTudo();
+    </script>
+</body>
+</html>
