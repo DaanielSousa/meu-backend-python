@@ -2,94 +2,109 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Painel Integral - CBN</title>
+    <title>Painel CBN - Faturamento</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .concluida { background: #f8f9fa; opacity: 0.6; text-decoration: line-through; }
-        .header-cbn { background: #003d99; color: white; border-bottom: 4px solid #ffc107; padding: 15px; }
-        .secao-medico { background: #fff3cd; border-radius: 10px; padding: 15px; border: 1px solid #ffeeba; }
-        .sessao-config { background: #e9ecef; border-radius: 10px; padding: 20px; margin-top: 40px; margin-bottom: 50px; }
-        .agenda-lista { max-height: 250px; overflow-y: auto; background: white; border-radius: 5px; }
+        :root {
+            --cor-fundo: #fdfaf5;
+            --cor-principal: #4a2c2a; /* Castanho */
+            --cor-destaque-gold: #c99c33; /* Dourado */
+            --cor-destaque-terra: #a87b5a; /* Terracota */
+        }
+        body { background-color: var(--cor-fundo); color: #212529; font-family: 'Segoe UI', sans-serif; }
+        .header-cbn { background-color: var(--cor-principal); color: white; border-bottom: 5px solid var(--cor-destaque-terra); padding: 15px; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .secao-medico { background-color: var(--cor-destaque-gold); border-radius: 12px; padding: 20px; color: white; }
+        .sessao-config { background-color: #f1ede4; border-radius: 12px; padding: 25px; margin-top: 40px; margin-bottom: 50px; }
+        .btn-primary { background-color: var(--cor-principal); border: none; }
+        .btn-warning { background-color: var(--cor-destaque-terra); border: none; color: white; }
+        .concluida { background: #f8f9fa; opacity: 0.5; text-decoration: line-through; }
+        .agenda-lista { max-height: 250px; overflow-y: auto; background: white; border-radius: 8px; border: 1px solid #e1dbcf; }
     </style>
 </head>
-<body class="bg-light">
+<body>
     <div class="header-cbn mb-4 shadow-sm">
         <div class="container d-flex justify-content-between align-items-center">
-            <h4 class="m-0">📍 Painel Integral - CBN</h4>
-            <div><strong>{{ user_nome }}</strong> | <a href="/logout" class="btn btn-sm btn-outline-light ms-2">Sair</a></div>
+            <h4 class="m-0 fw-bold">📍 Painel CBN - {{ nivel }}</h4>
+            <div><span>{{ user_nome }}</span> | <a href="/logout" class="btn btn-sm btn-outline-light ms-2">Sair</a></div>
         </div>
     </div>
 
     <div class="container">
         <div class="row">
             <div class="col-md-8">
-                <div class="card p-4 mb-4 shadow-sm">
+                <div class="card p-4 mb-4">
                     <h6 class="fw-bold text-primary">📤 AGENDAR TAREFA</h6>
-                    <div class="row g-2 mt-2">
-                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="Descrição..."></div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="Tarefa..."></div>
                         <div class="col-md-3"><input type="datetime-local" id="t-data" class="form-control" onchange="validarData(this.value)"></div>
                         <div class="col-md-3"><select id="t-resp" class="form-select"><option value="">Responsável</option></select></div>
                         <div class="col-md-12 text-end mt-2"><button onclick="salvarTarefa()" class="btn btn-primary px-4">SALVAR</button></div>
                     </div>
                 </div>
 
-                <div class="card p-3 shadow-sm">
-                    <h6 class="fw-bold mb-3">📋 TAREFAS ATIVAS</h6>
-                    <table class="table align-middle small">
-                        <thead><tr><th>Status</th><th>Tarefa</th><th>Prazo</th><th>Resp.</th><th>Ação</th></tr></thead>
+                <div class="card p-3">
+                    <h6 class="fw-bold mb-3 text-primary">📋 TAREFAS ATIVAS</h6>
+                    <table class="table table-hover align-middle small">
+                        <thead class="table-light"><tr><th>Status</th><th>Tarefa</th><th>Prazo</th><th>Resp.</th><th>Ação</th></tr></thead>
                         <tbody id="corpo-tarefas"></tbody>
                     </table>
                 </div>
             </div>
 
             <div class="col-md-4">
-                <div class="secao-medico shadow-sm mb-4">
-                    <h6 class="fw-bold text-dark">🩺 COBRANÇA DE MÉDICOS</h6>
-                    
-                    <div class="mt-2 mb-3">
-                        <label class="small fw-bold text-muted">Texto do WhatsApp:</label>
-                        <textarea id="msg-padrao-medico" class="form-control form-control-sm" rows="3">Prezado(a) Dr(a). {nome}, o faturamento da CBN solicita o envio do relatório mensal de produção. Atenciosamente, Daniel.</textarea>
+                <div class="secao-medico shadow-sm">
+                    <h6 class="fw-bold">🩺 COBRANÇA DE MÉDICOS</h6>
+                    <div class="mt-3 mb-3">
+                        <label class="small fw-bold">Mensagem Padrão:</label>
+                        <textarea id="msg-padrao-medico" class="form-control form-control-sm" rows="3">Prezado(a) Dr(a). {nome}, o faturamento da CBN solicita o envio do relatório mensal. Atenciosamente, Daniel.</textarea>
                     </div>
-
                     <div id="lista-medicos-cobranca"></div>
                 </div>
             </div>
         </div>
 
-        <div class="sessao-config shadow-sm">
-            <h5 class="fw-bold mb-4 text-secondary">⚙️ GESTÃO DE CADASTROS</h5>
+        {% if nivel in ['Admin', 'Coordenador'] %}
+        <div class="sessao-config">
+            <h5 class="fw-bold mb-4 text-secondary">⚙️ GESTÃO DO SISTEMA</h5>
             <div class="row">
                 <div class="col-md-4 border-end">
-                    <h6 class="fw-bold">👥 Novo Membro</h6>
-                    <input type="text" id="eq-nome" class="form-control mb-2" placeholder="Nome">
-                    <input type="text" id="eq-user" class="form-control mb-2" placeholder="Login">
-                    <input type="password" id="eq-senha" class="form-control mb-2" placeholder="Senha">
-                    <input type="text" id="eq-zap" class="form-control mb-2" placeholder="WhatsApp (DDD+Num)">
+                    {% if nivel == 'Admin' %}
+                    <h6 class="fw-bold text-primary">👥 Novo Perfil</h6>
+                    <input type="text" id="eq-nome" class="form-control mb-2 form-control-sm" placeholder="Nome">
+                    <input type="text" id="eq-user" class="form-control mb-2 form-control-sm" placeholder="Login">
+                    <input type="password" id="eq-senha" class="form-control mb-2 form-control-sm" placeholder="Senha">
+                    <input type="text" id="eq-zap" class="form-control mb-2 form-control-sm" placeholder="WhatsApp">
+                    <select id="eq-nivel" class="form-select mb-2 form-select-sm">
+                        <option value="Auxiliar">Auxiliar</option>
+                        <option value="Coordenador">Coordenador</option>
+                        <option value="Admin">Admin</option>
+                    </select>
                     <button onclick="cadastrarEquipe()" class="btn btn-sm btn-dark w-100">CADASTRAR</button>
+                    {% else %}
+                    <p class="text-muted small text-center">Criação de perfis restrita ao Admin.</p>
+                    {% endif %}
                 </div>
                 
                 <div class="col-md-4 border-end px-4">
-                    <h6 class="fw-bold">📋 Agenda da Equipe</h6>
-                    <div class="agenda-lista border p-2 shadow-sm" id="corpo-equipe"></div>
+                    <h6 class="fw-bold text-primary">📋 Agenda Equipe</h6>
+                    <div class="agenda-lista border p-2" id="corpo-equipe"></div>
                 </div>
 
                 <div class="col-md-4">
-                    <h6 class="fw-bold">🩺 Novo Médico</h6>
-                    <input type="text" id="med-nome" class="form-control mb-2" placeholder="Nome do Médico">
-                    <input type="text" id="med-crm" class="form-control mb-2" placeholder="CRM">
-                    <input type="text" id="med-zap" class="form-control mb-2" placeholder="WhatsApp">
+                    <h6 class="fw-bold text-primary">🩺 Adicionar Médico</h6>
+                    <input type="text" id="med-nome" class="form-control mb-2 form-control-sm" placeholder="Nome">
+                    <input type="text" id="med-crm" class="form-control mb-2 form-control-sm" placeholder="CRM">
+                    <input type="text" id="med-zap" class="form-control mb-2 form-control-sm" placeholder="WhatsApp">
                     <button onclick="cadastrarMedico()" class="btn btn-sm btn-warning w-100">SALVAR MÉDICO</button>
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 
     <script>
-        async function validarData(v) {
-            const r = await fetch('/verificar_data', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:v})});
-            const d = await r.json();
-            if(d.mensagem) alert("⚠️ IA: " + d.mensagem);
-        }
+        const NIVEL = "{{ nivel }}";
 
         async function carregarTudo() {
             // Tarefas
@@ -112,13 +127,13 @@
             const rM = await fetch('/listar_medicos');
             const medicos = await rM.json();
             const divM = document.getElementById('lista-medicos-cobranca');
-            divM.innerHTML = medicos.length ? '' : '<p class="text-muted small">Vazio.</p>';
+            divM.innerHTML = '';
             medicos.forEach(m => {
-                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center shadow-sm">
+                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center text-dark shadow-sm">
                     <small><b>Dr. ${m.nome}</b></small>
                     <div>
                         <button onclick="zapMedico('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary py-0">Zap</button>
-                        <button onclick="removerMedico(${m.id})" class="btn btn-sm btn-link text-danger p-0 ms-1" title="Excluir">🗑️</button>
+                        ${NIVEL === 'Admin' ? `<button onclick="removerMedico(${m.id})" class="btn btn-sm btn-link text-danger p-0 ms-1">🗑️</button>` : ''}
                     </div>
                 </div>`;
             });
@@ -128,50 +143,45 @@
             const equipe = await rE.json();
             const select = document.getElementById('t-resp');
             const agenda = document.getElementById('corpo-equipe');
-            select.innerHTML = '<option value="">Responsável</option>';
-            agenda.innerHTML = '';
+            if(select) select.innerHTML = '<option value="">Responsável</option>';
+            if(agenda) agenda.innerHTML = '';
             equipe.forEach(e => {
-                select.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
-                agenda.innerHTML += `<div class="d-flex justify-content-between align-items-center mb-1 border-bottom pb-1">
-                    <small style="font-size: 0.75rem"><b>${e.nome}</b></small>
-                    <div>
-                        <button onclick="zap('${e.whatsapp}', 'Olá!')" class="btn btn-sm p-0 text-success">📞</button>
-                        <button onclick="removerEquipe(${e.id})" class="btn btn-sm p-0 text-danger ms-2" title="Remover">×</button>
-                    </div>
-                </div>`;
+                if(select) select.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+                if(agenda) {
+                    agenda.innerHTML += `<div class="d-flex justify-content-between align-items-center mb-1 border-bottom pb-1">
+                        <small style="font-size: 0.75rem"><b>${e.nome}</b> (${e.nivel})</small>
+                        <div>
+                            <button onclick="zap('${e.whatsapp}', 'Olá!')" class="btn btn-sm p-0 text-success">📞</button>
+                            ${NIVEL === 'Admin' ? `<button onclick="removerEquipe(${e.id})" class="btn btn-sm p-0 text-danger ms-2">×</button>` : ''}
+                        </div>
+                    </div>`;
+                }
             });
         }
 
         function zapMedico(n, nome) {
-            let texto = document.getElementById('msg-padrao-medico').value;
-            texto = texto.replace('{nome}', nome);
+            let texto = document.getElementById('msg-padrao-medico').value.replace('{nome}', nome);
             window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(texto)}`, '_blank');
         }
 
         async function cadastrarMedico() {
             const d = {nome: document.getElementById('med-nome').value, crm: document.getElementById('med-crm').value, whatsapp: document.getElementById('med-zap').value};
             await fetch('/cadastrar_medico', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
-            location.reload();
+            carregarTudo();
         }
 
         async function removerMedico(id) {
-            if(confirm("Excluir este médico permanentemente?")) {
-                await fetch(`/deletar_medico/${id}`, {method:'DELETE'});
-                carregarTudo();
-            }
+            if(confirm("Excluir médico?")) { await fetch(`/deletar_medico/${id}`, {method:'DELETE'}); carregarTudo(); }
         }
 
         async function cadastrarEquipe() {
-            const d = {nome: document.getElementById('eq-nome').value, usuario: document.getElementById('eq-user').value, senha: document.getElementById('eq-senha').value, whatsapp: document.getElementById('eq-zap').value};
+            const d = {nome: document.getElementById('eq-nome').value, usuario: document.getElementById('eq-user').value, senha: document.getElementById('eq-senha').value, whatsapp: document.getElementById('eq-zap').value, nivel: document.getElementById('eq-nivel').value};
             await fetch('/cadastrar_equipe', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
-            location.reload();
+            carregarTudo();
         }
 
         async function removerEquipe(id) {
-            if(confirm("Remover este membro da equipe?")) {
-                await fetch(`/deletar_equipe/${id}`, {method:'DELETE'});
-                carregarTudo();
-            }
+            if(confirm("Remover acesso?")) { await fetch(`/deletar_equipe/${id}`, {method:'DELETE'}); carregarTudo(); }
         }
 
         async function salvarTarefa() {
@@ -183,6 +193,10 @@
 
         function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(m)}`, '_blank'); }
         async function status(id, s) { await fetch(`/atualizar_status/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
+        async function validarData(v) {
+            const r = await fetch('/verificar_data', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:v})});
+            const d = await r.json(); if(d.mensagem) alert("⚠️ IA: " + d.mensagem);
+        }
 
         carregarTudo();
         setInterval(carregarTudo, 30000);
