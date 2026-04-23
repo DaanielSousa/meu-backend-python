@@ -9,6 +9,7 @@
         .header-cbn { background: #003d99; color: white; border-bottom: 4px solid #ffc107; padding: 15px; }
         .secao-medico { background: #fff3cd; border-radius: 10px; padding: 15px; border: 1px solid #ffeeba; }
         .sessao-config { background: #e9ecef; border-radius: 10px; padding: 20px; margin-top: 40px; margin-bottom: 50px; }
+        .agenda-lista { max-height: 200px; overflow-y: auto; background: white; border-radius: 5px; }
     </style>
 </head>
 <body class="bg-light">
@@ -50,22 +51,29 @@
         </div>
 
         <div class="sessao-config shadow-sm">
-            <h5 class="fw-bold mb-4 text-secondary">⚙️ GESTÃO DE CADASTROS</h5>
+            <h5 class="fw-bold mb-4 text-secondary">⚙️ GESTÃO DE CADASTROS E EQUIPE</h5>
             <div class="row">
-                <div class="col-md-6 border-end">
-                    <h6 class="fw-bold">👥 Equipe (Val, Karol, etc.)</h6>
+                <div class="col-md-4 border-end">
+                    <h6 class="fw-bold">👥 Cadastrar Membro</h6>
                     <input type="text" id="eq-nome" class="form-control mb-2" placeholder="Nome Completo">
                     <input type="text" id="eq-user" class="form-control mb-2" placeholder="Usuário">
                     <input type="password" id="eq-senha" class="form-control mb-2" placeholder="Senha">
-                    <input type="text" id="eq-zap" class="form-control mb-2" placeholder="WhatsApp (DDD+Número)">
-                    <button onclick="cadastrarEquipe()" class="btn btn-sm btn-dark w-100">CADASTRAR MEMBRO</button>
+                    <input type="text" id="eq-zap" class="form-control mb-2" placeholder="WhatsApp (DDD+Núm)">
+                    <button onclick="cadastrarEquipe()" class="btn btn-sm btn-dark w-100">SALVAR NA EQUIPE</button>
                 </div>
-                <div class="col-md-6">
-                    <h6 class="fw-bold">🩺 Médicos para Faturamento</h6>
+                
+                <div class="col-md-4 border-end px-4">
+                    <h6 class="fw-bold">📋 Agenda de Contatos</h6>
+                    <div class="agenda-lista border p-2 shadow-sm" id="corpo-equipe">
+                        </div>
+                </div>
+
+                <div class="col-md-4">
+                    <h6 class="fw-bold">🩺 Médicos (Faturamento)</h6>
                     <input type="text" id="med-nome" class="form-control mb-2" placeholder="Nome do Doutor(a)">
                     <input type="text" id="med-crm" class="form-control mb-2" placeholder="CRM">
                     <input type="text" id="med-zap" class="form-control mb-2" placeholder="WhatsApp">
-                    <button onclick="cadastrarMedico()" class="btn btn-sm btn-warning w-100">CADASTRAR MÉDICO</button>
+                    <button onclick="cadastrarMedico()" class="btn btn-sm btn-warning w-100">SALVAR MÉDICO</button>
                 </div>
             </div>
         </div>
@@ -75,7 +83,7 @@
         async function validarData(v) {
             const r = await fetch('/verificar_data', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:v})});
             const d = await r.json();
-            if(d.mensagem) alert("⚠️ " + d.mensagem);
+            if(d.mensagem) alert("⚠️ IA: " + d.mensagem);
         }
 
         async function carregarTudo() {
@@ -99,20 +107,29 @@
             const rM = await fetch('/listar_medicos');
             const medicos = await rM.json();
             const divM = document.getElementById('lista-medicos-cobranca');
-            divM.innerHTML = medicos.length ? '' : '<p class="text-muted small">Sem médicos cadastrados.</p>';
+            divM.innerHTML = medicos.length ? '' : '<p class="text-muted small">Sem médicos.</p>';
             medicos.forEach(m => {
-                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center shadow-sm">
-                    <small><b>Dr. ${m.nome}</b><br>CRM: ${m.crm}</small>
-                    <button onclick="zapMedico('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary">Cobrar</button>
+                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center">
+                    <small><b>Dr. ${m.nome}</b></small>
+                    <button onclick="zapMedico('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary py-0">Cobrar</button>
                 </div>`;
             });
 
-            // Select Equipe
-            const rE = await fetch('/listar_equipe');
+            // Equipe (Select e Agenda)
+            const rE = await fetch('/listar_equipe_completa');
             const equipe = await rE.json();
             const select = document.getElementById('t-resp');
+            const agenda = document.getElementById('corpo-equipe');
             select.innerHTML = '<option value="">Responsável</option>';
-            equipe.forEach(e => { select.innerHTML += `<option value="${e.id}">${e.nome}</option>`; });
+            agenda.innerHTML = '';
+            
+            equipe.forEach(e => {
+                select.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+                agenda.innerHTML += `<div class="d-flex justify-content-between align-items-center mb-1 border-bottom pb-1">
+                    <small style="font-size: 0.75rem"><b>${e.nome}</b></small>
+                    <button onclick="zap('${e.whatsapp}', 'Olá!')" class="btn btn-sm p-0 text-success">📞</button>
+                </div>`;
+            });
         }
 
         async function cadastrarMedico() {
@@ -134,7 +151,7 @@
             location.reload();
         }
 
-        function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent('🚨 Alerta CBN: ' + m)}`, '_blank'); }
+        function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(m)}`, '_blank'); }
         function zapMedico(n, nome) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent('Prezado Dr. ' + nome + ', faturamento CBN solicita relatório mensal.')}`, '_blank'); }
         async function status(id, s) { await fetch(`/atualizar_status/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
 
