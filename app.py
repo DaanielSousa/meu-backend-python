@@ -86,6 +86,13 @@ def cadastrar_medico():
         conn.commit()
     return jsonify({"status": "sucesso"})
 
+@app.route('/deletar_medico/<int:id>', methods=['DELETE'])
+def deletar_medico(id):
+    with conectar_bd() as conn:
+        conn.execute('DELETE FROM medicos WHERE id = ?', (id,))
+        conn.commit()
+    return jsonify({"status": "sucesso"})
+
 @app.route('/listar_medicos')
 def listar_medicos():
     with conectar_bd() as conn:
@@ -99,6 +106,13 @@ def cadastrar_equipe():
     with conectar_bd() as conn:
         conn.execute('INSERT INTO equipe (nome, email, whatsapp, senha) VALUES (?, ?, ?, ?)', 
                      (d['nome'], d['usuario'], d['whatsapp'], d['senha']))
+        conn.commit()
+    return jsonify({"status": "sucesso"})
+
+@app.route('/deletar_equipe/<int:id>', methods=['DELETE'])
+def deletar_equipe(id):
+    with conectar_bd() as conn:
+        conn.execute('DELETE FROM equipe WHERE id = ?', (id,))
         conn.commit()
     return jsonify({"status": "sucesso"})
 
