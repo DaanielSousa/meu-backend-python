@@ -45,7 +45,13 @@
             <div class="col-md-4">
                 <div class="secao-medico shadow-sm mb-4">
                     <h6 class="fw-bold text-dark">🩺 COBRANÇA DE MÉDICOS</h6>
-                    <div id="lista-medicos-cobranca" class="mt-3"></div>
+                    
+                    <div class="mt-2 mb-3">
+                        <label class="small fw-bold text-muted">Texto do WhatsApp:</label>
+                        <textarea id="msg-padrao-medico" class="form-control form-control-sm" rows="3">Prezado(a) Dr(a). {nome}, o faturamento da CBN solicita o envio do relatório mensal de produção. Atenciosamente, Daniel.</textarea>
+                    </div>
+
+                    <div id="lista-medicos-cobranca"></div>
                 </div>
             </div>
         </div>
@@ -58,7 +64,7 @@
                     <input type="text" id="eq-nome" class="form-control mb-2" placeholder="Nome">
                     <input type="text" id="eq-user" class="form-control mb-2" placeholder="Login">
                     <input type="password" id="eq-senha" class="form-control mb-2" placeholder="Senha">
-                    <input type="text" id="eq-zap" class="form-control mb-2" placeholder="WhatsApp">
+                    <input type="text" id="eq-zap" class="form-control mb-2" placeholder="WhatsApp (DDD+Num)">
                     <button onclick="cadastrarEquipe()" class="btn btn-sm btn-dark w-100">CADASTRAR</button>
                 </div>
                 
@@ -98,7 +104,7 @@
                     <td><b>${t.tarefa}</b><br><small>Por: ${t.autor}</small></td>
                     <td>${t.data}</td>
                     <td><span class="badge bg-secondary">${t.nome_resp || 'Geral'}</span></td>
-                    <td>${!isC && t.zap_resp ? `<button onclick="zap('${t.zap_resp}', '${t.tarefa}')" class="btn btn-sm btn-success">Zap</button>` : ''}</td>
+                    <td>${!isC && t.zap_resp ? `<button onclick="zap('${t.zap_resp}', '${t.tarefa}')" class="btn btn-sm btn-success py-0">Zap</button>` : ''}</td>
                 </tr>`;
             });
 
@@ -108,11 +114,11 @@
             const divM = document.getElementById('lista-medicos-cobranca');
             divM.innerHTML = medicos.length ? '' : '<p class="text-muted small">Vazio.</p>';
             medicos.forEach(m => {
-                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center">
+                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center shadow-sm">
                     <small><b>Dr. ${m.nome}</b></small>
                     <div>
                         <button onclick="zapMedico('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary py-0">Zap</button>
-                        <button onclick="removerMedico(${m.id})" class="btn btn-sm btn-link text-danger p-0 ms-1">🗑️</button>
+                        <button onclick="removerMedico(${m.id})" class="btn btn-sm btn-link text-danger p-0 ms-1" title="Excluir">🗑️</button>
                     </div>
                 </div>`;
             });
@@ -130,10 +136,16 @@
                     <small style="font-size: 0.75rem"><b>${e.nome}</b></small>
                     <div>
                         <button onclick="zap('${e.whatsapp}', 'Olá!')" class="btn btn-sm p-0 text-success">📞</button>
-                        <button onclick="removerEquipe(${e.id})" class="btn btn-sm p-0 text-danger ms-2">×</button>
+                        <button onclick="removerEquipe(${e.id})" class="btn btn-sm p-0 text-danger ms-2" title="Remover">×</button>
                     </div>
                 </div>`;
             });
+        }
+
+        function zapMedico(n, nome) {
+            let texto = document.getElementById('msg-padrao-medico').value;
+            texto = texto.replace('{nome}', nome);
+            window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(texto)}`, '_blank');
         }
 
         async function cadastrarMedico() {
@@ -143,7 +155,7 @@
         }
 
         async function removerMedico(id) {
-            if(confirm("Excluir este médico?")) {
+            if(confirm("Excluir este médico permanentemente?")) {
                 await fetch(`/deletar_medico/${id}`, {method:'DELETE'});
                 carregarTudo();
             }
@@ -156,7 +168,7 @@
         }
 
         async function removerEquipe(id) {
-            if(confirm("Excluir este membro?")) {
+            if(confirm("Remover este membro da equipe?")) {
                 await fetch(`/deletar_equipe/${id}`, {method:'DELETE'});
                 carregarTudo();
             }
@@ -170,7 +182,6 @@
         }
 
         function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(m)}`, '_blank'); }
-        function zapMedico(n, nome) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent('Prezado Dr. ' + nome + ', faturamento CBN solicita relatório mensal.')}`, '_blank'); }
         async function status(id, s) { await fetch(`/atualizar_status/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
 
         carregarTudo();
