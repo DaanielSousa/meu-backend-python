@@ -1,5 +1,4 @@
-flask
-flask-cors
+Flask
+Flask-Cors
+holidays
 gunicorn
-authlib
-requests
