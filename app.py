@@ -17,11 +17,17 @@ def init_db():
         conn.execute('''CREATE TABLE IF NOT EXISTS tarefas 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, tarefa TEXT, data TEXT, status INTEGER DEFAULT 0, autor TEXT, responsavel_id INTEGER)''')
         conn.execute('''CREATE TABLE IF NOT EXISTS equipe 
-                        (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, email TEXT UNIQUE, whatsapp TEXT, senha TEXT)''')
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, email TEXT UNIQUE, whatsapp TEXT, senha TEXT, nivel TEXT)''')
         conn.execute('''CREATE TABLE IF NOT EXISTS medicos 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, crm TEXT, whatsapp TEXT)''')
-        conn.execute('INSERT OR IGNORE INTO equipe (nome, email, whatsapp, senha) VALUES (?, ?, ?, ?)', 
-                     ('Daniel Admin', 'admin', '61900000000', '123'))
+        
+        try:
+            conn.execute('ALTER TABLE equipe ADD COLUMN nivel TEXT DEFAULT "Auxiliar"')
+        except:
+            pass
+
+        conn.execute('INSERT OR IGNORE INTO equipe (nome, email, whatsapp, senha, nivel) VALUES (?, ?, ?, ?, ?)', 
+                     ('Daniel Admin', 'admin', '61900000000', '123', 'Admin'))
         conn.commit()
 
 init_db()
@@ -36,22 +42,23 @@ def login():
     d = request.json
     with conectar_bd() as conn:
         c = conn.cursor()
-        c.execute('SELECT nome FROM equipe WHERE email = ? AND senha = ?', (d.get('email'), d.get('senha')))
+        c.execute('SELECT nome, nivel FROM equipe WHERE email = ? AND senha = ?', (d.get('email'), d.get('senha')))
         user = c.fetchone()
         if user:
             session['user'] = user[0]
+            session['nivel'] = user[1]
             return jsonify({"status": "sucesso"})
     return jsonify({"status": "erro", "msg": "Usuário ou senha inválidos"}), 401
 
 @app.route('/logout')
 def logout():
-    session.pop('user', None)
+    session.clear()
     return redirect(url_for('home'))
 
 @app.route('/painel')
 def painel():
     if 'user' not in session: return redirect(url_for('home'))
-    return render_template('index.html', user_nome=session['user'])
+    return render_template('index.html', user_nome=session['user'], nivel=session.get('nivel', 'Auxiliar'))
 
 @app.route('/salvar', methods=['POST'])
 def salvar():
@@ -70,16 +77,9 @@ def listar():
                   FROM tarefas t LEFT JOIN equipe e ON t.responsavel_id = e.id ORDER BY t.status ASC, t.id DESC''')
         return jsonify([{"id":t[0],"tarefa":t[1],"data":t[2],"status":t[3],"autor":t[4],"nome_resp":t[5],"zap_resp":t[6]} for t in c.fetchall()])
 
-@app.route('/atualizar_status/<int:id>', methods=['POST'])
-def atualizar_status(id):
-    s = request.json.get('status')
-    with conectar_bd() as conn:
-        conn.execute('UPDATE tarefas SET status = ? WHERE id = ?', (s, id))
-        conn.commit()
-    return jsonify({"status": "sucesso"})
-
 @app.route('/cadastrar_medico', methods=['POST'])
 def cadastrar_medico():
+    if session.get('nivel') not in ['Admin', 'Coordenador']: return jsonify({"status":"erro"}), 403
     d = request.json
     with conectar_bd() as conn:
         conn.execute('INSERT INTO medicos (nome, crm, whatsapp) VALUES (?, ?, ?)', (d['nome'], d['crm'], d['whatsapp']))
@@ -88,6 +88,7 @@ def cadastrar_medico():
 
 @app.route('/deletar_medico/<int:id>', methods=['DELETE'])
 def deletar_medico(id):
+    if session.get('nivel') != 'Admin': return jsonify({"status":"erro"}), 403
     with conectar_bd() as conn:
         conn.execute('DELETE FROM medicos WHERE id = ?', (id,))
         conn.commit()
@@ -102,15 +103,17 @@ def listar_medicos():
 
 @app.route('/cadastrar_equipe', methods=['POST'])
 def cadastrar_equipe():
+    if session.get('nivel') != 'Admin': return jsonify({"status":"erro"}), 403
     d = request.json
     with conectar_bd() as conn:
-        conn.execute('INSERT INTO equipe (nome, email, whatsapp, senha) VALUES (?, ?, ?, ?)', 
-                     (d['nome'], d['usuario'], d['whatsapp'], d['senha']))
+        conn.execute('INSERT INTO equipe (nome, email, whatsapp, senha, nivel) VALUES (?, ?, ?, ?, ?)', 
+                     (d['nome'], d['usuario'], d['whatsapp'], d['senha'], d['nivel']))
         conn.commit()
     return jsonify({"status": "sucesso"})
 
 @app.route('/deletar_equipe/<int:id>', methods=['DELETE'])
 def deletar_equipe(id):
+    if session.get('nivel') != 'Admin': return jsonify({"status":"erro"}), 403
     with conectar_bd() as conn:
         conn.execute('DELETE FROM equipe WHERE id = ?', (id,))
         conn.commit()
@@ -120,8 +123,16 @@ def deletar_equipe(id):
 def listar_equipe_completa():
     with conectar_bd() as conn:
         c = conn.cursor()
-        c.execute('SELECT id, nome, whatsapp FROM equipe')
-        return jsonify([{"id": e[0], "nome": e[1], "whatsapp": e[2]} for e in c.fetchall()])
+        c.execute('SELECT id, nome, whatsapp, nivel FROM equipe')
+        return jsonify([{"id": e[0], "nome": e[1], "whatsapp": e[2], "nivel": e[3]} for e in c.fetchall()])
+
+@app.route('/atualizar_status/<int:id>', methods=['POST'])
+def atualizar_status(id):
+    s = request.json.get('status')
+    with conectar_bd() as conn:
+        conn.execute('UPDATE tarefas SET status = ? WHERE id = ?', (s, id))
+        conn.commit()
+    return jsonify({"status": "sucesso"})
 
 @app.route('/verificar_data', methods=['POST'])
 def verificar_data():
