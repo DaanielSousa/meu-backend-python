@@ -102,12 +102,12 @@ def cadastrar_equipe():
         conn.commit()
     return jsonify({"status": "sucesso"})
 
-@app.route('/listar_equipe')
-def listar_equipe():
+@app.route('/listar_equipe_completa')
+def listar_equipe_completa():
     with conectar_bd() as conn:
         c = conn.cursor()
-        c.execute('SELECT id, nome FROM equipe')
-        return jsonify([{"id": e[0], "nome": e[1]} for e in c.fetchall()])
+        c.execute('SELECT id, nome, whatsapp FROM equipe')
+        return jsonify([{"id": e[0], "nome": e[1], "whatsapp": e[2]} for e in c.fetchall()])
 
 @app.route('/verificar_data', methods=['POST'])
 def verificar_data():
