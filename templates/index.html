@@ -2,35 +2,27 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>CBN - {{ setor }}</title>
+    <title>CBN OMNI - ERP</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root { --cor-fundo: #fdfaf5; --cor-principal: #4a2c2a; --cor-gold: #c99c33; --cor-terra: #a87b5a; }
-        body { background-color: var(--cor-fundo); font-family: 'Segoe UI', sans-serif; color: #333; }
-        .header-cbn { background-color: var(--cor-principal); color: white; padding: 15px; border-bottom: 5px solid var(--cor-terra); }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        
-        /* ALERTA VISUAL */
-        .vencida-alerta { 
-            background-color: #fff0f0 !important; 
-            border-left: 6px solid #ff4d4d !important;
-            animation: pulse-red 2s infinite;
-        }
-        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .concluida { opacity: 0.4; text-decoration: line-through; background: #eee !important; animation: none !important; border: none !important; }
-        
-        .btn-primary { background-color: var(--cor-principal); border: none; }
-        .sessao-config { background-color: #f1ede4; border-radius: 15px; padding: 25px; margin-top: 30px; }
-        .badge-setor { font-size: 0.65rem; background: var(--cor-terra); color: white; padding: 2px 5px; border-radius: 4px; }
+        :root { --c-primary: #4a2c2a; --c-gold: #c99c33; --c-bg: #fdfaf5; --c-terra: #a87b5a; }
+        body { background: var(--c-bg); font-family: 'Segoe UI', sans-serif; }
+        .header { background: var(--c-primary); color: white; padding: 12px; border-bottom: 5px solid var(--c-terra); }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .vencida-alerta { background-color: #fff0f0 !important; border-left: 6px solid #ff4d4d !important; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .concluida { opacity: 0.4; text-decoration: line-through; background: #eee !important; border: none !important; }
+        .btn-gold { background: var(--c-gold); color: white; border: none; }
+        .btn-gold:hover { background: #b0892a; color: white; }
     </style>
 </head>
 <body>
-    <audio id="audio-beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+    <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
-    <div class="header-cbn mb-4 shadow">
+    <div class="header mb-4 shadow">
         <div class="container d-flex justify-content-between align-items-center">
-            <h4 class="m-0 fw-bold">📍 PAINEL {{ setor | upper }}</h4>
-            <div><span>Bem-vindo, <b>{{ user_nome }}</b></span> <a href="/logout" class="btn btn-sm btn-outline-light ms-3">Sair</a></div>
+            <h4 class="m-0 fw-bold">📍 CBN OMNI ERP <small style="font-size: 0.6em; opacity: 0.7;">{{ setor }}</small></h4>
+            <div class="small"><b>{{ user_nome }}</b> | <a href="/logout" class="text-white">Sair</a></div>
         </div>
     </div>
 
@@ -38,19 +30,18 @@
         <div class="row">
             <div class="col-md-8">
                 <div class="card p-4">
-                    <h6 class="fw-bold">📤 NOVA TAREFA NO SETOR</h6>
-                    <div class="row g-2 mt-2">
-                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="O que precisa ser feito?"></div>
+                    <h6 class="fw-bold">📤 AGENDAR OPERAÇÃO</h6>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="Descrição"></div>
                         <div class="col-md-3"><input type="datetime-local" id="t-data" class="form-control"></div>
                         <div class="col-md-3"><select id="t-resp" class="form-select"><option value="">Responsável</option></select></div>
-                        <div class="col-md-12 text-end mt-2"><button onclick="salvarTarefa()" class="btn btn-primary px-4">AGENDAR</button></div>
+                        <button onclick="salvarTarefa()" class="btn btn-primary mt-2 fw-bold" style="background: var(--c-primary);">SALVAR NO FLUXO</button>
                     </div>
                 </div>
 
                 <div class="card p-3">
-                    <h6 class="fw-bold mb-3">📋 TAREFAS DO DIA</h6>
-                    <table class="table table-sm table-hover align-middle">
-                        <thead class="table-light"><tr><th>ST</th><th>Tarefa</th><th>Prazo</th><th>Resp.</th><th>Ação</th></tr></thead>
+                    <h6 class="fw-bold mb-3">📋 QUADRO DE ATIVIDADES</h6>
+                    <table class="table table-sm align-middle small">
                         <tbody id="corpo-tarefas"></tbody>
                     </table>
                 </div>
@@ -58,45 +49,39 @@
 
             <div class="col-md-4">
                 {% if setor == 'Faturamento' or nivel == 'Admin' %}
-                <div class="card p-3" style="background: var(--cor-gold); color: white;">
-                    <h6 class="fw-bold">🩺 COBRANÇA MÉDICA</h6>
-                    <textarea id="msg-zap" class="form-control form-control-sm mb-2" rows="3">Dr(a). {nome}, faturamento CBN solicita o envio do relatório.</textarea>
-                    <div id="lista-medicos"></div>
+                <div class="card p-3 shadow-sm" style="background: var(--c-gold); color: white;">
+                    <h6 class="fw-bold">🩺 CADASTRO E COBRANÇA MÉDICA</h6>
+                    <div class="bg-white p-2 rounded mb-3 text-dark">
+                        <input type="text" id="m-nome" class="form-control form-control-sm mb-1" placeholder="Nome do Médico">
+                        <input type="text" id="m-zap" class="form-control form-control-sm mb-2" placeholder="WhatsApp (DDD+Número)">
+                        <button onclick="cadastrarMedico()" class="btn btn-dark btn-sm w-100 fw-bold">SALVAR MÉDICO</button>
+                    </div>
+                    <textarea id="msg-zap" class="form-control form-control-sm mb-2">Dr(a). {nome}, faturamento CBN solicita relatório mensal.</textarea>
+                    <div id="lista-medicos" style="max-height: 250px; overflow-y: auto;"></div>
                 </div>
                 {% endif %}
             </div>
         </div>
 
         {% if nivel == 'Admin' %}
-        <div class="sessao-config shadow-sm">
-            <h5 class="fw-bold mb-3 text-brown">⚙️ GESTÃO DE ACESSOS (SISTEMA)</h5>
-            <div class="row">
+        <div class="mt-4 p-4 bg-white rounded shadow-sm border">
+            <h5 class="fw-bold text-brown">⚙️ GESTÃO OMNI (ADMINISTRADOR)</h5>
+            <div class="row mt-3">
                 <div class="col-md-4 border-end">
-                    <h6 class="fw-bold">👤 Criar Novo Acesso</h6>
-                    <input type="text" id="eq-nome" class="form-control form-control-sm mb-2" placeholder="Nome Completo">
-                    <input type="text" id="eq-user" class="form-control form-control-sm mb-2" placeholder="Usuário (Login)">
-                    <input type="text" id="eq-senha" class="form-control form-control-sm mb-2" placeholder="Senha (Visível)">
-                    <input type="text" id="eq-zap" class="form-control form-control-sm mb-2" placeholder="WhatsApp">
-                    
-                    <small class="fw-bold">Setor de Atuação:</small>
-                    <select id="eq-setor" class="form-select form-select-sm mb-2">
-                        <option value="Faturamento">Faturamento</option>
-                        <option value="Financeiro">Financeiro</option>
-                        <option value="RH">RH</option>
-                        <option value="Recepção">Recepção</option>
-                    </select>
-
-                    <small class="fw-bold">Nível de Permissão:</small>
-                    <select id="eq-nivel" class="form-select form-select-sm mb-3">
-                        <option value="Auxiliar">Auxiliar</option>
-                        <option value="Coordenador">Coordenador</option>
-                        <option value="Admin">Admin</option>
-                    </select>
-                    <button onclick="cadastrarEquipe()" class="btn btn-dark btn-sm w-100">SALVAR PERFIL</button>
+                    <h6 class="text-primary fw-bold small">🏢 ADICIONAR SETOR</h6>
+                    <input type="text" id="new-setor" class="form-control form-control-sm mb-2" placeholder="Nome do Setor">
+                    <button onclick="criarSetor()" class="btn btn-primary btn-sm w-100">CRIAR SETOR</button>
                 </div>
-                <div class="col-md-8 px-4">
-                    <h6 class="fw-bold">👥 Usuários Cadastrados</h6>
-                    <div id="lista-equipe" class="bg-white p-2 border rounded" style="max-height: 250px; overflow-y: auto;"></div>
+                <div class="col-md-8 ps-4">
+                    <h6 class="text-primary fw-bold small">👥 ADICIONAR COLABORADOR</h6>
+                    <div class="row g-2">
+                        <div class="col-md-4"><input type="text" id="u-nome" class="form-control form-control-sm" placeholder="Nome"></div>
+                        <div class="col-md-4"><input type="text" id="u-login" class="form-control form-control-sm" placeholder="Login"></div>
+                        <div class="col-md-4"><input type="text" id="u-senha" class="form-control form-control-sm" placeholder="Senha"></div>
+                        <div class="col-md-4"><input type="text" id="u-zap" class="form-control form-control-sm" placeholder="WhatsApp"></div>
+                        <div class="col-md-4"><select id="u-setor" class="form-select form-select-sm"></select></div>
+                        <div class="col-md-4"><button onclick="cadastrarEquipe()" class="btn btn-dark btn-sm w-100">CADASTRAR</button></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -105,107 +90,95 @@
 
     <script>
         async function carregarTudo() {
-            // 1. Carregar Tarefas e Checar Alertas
-            const rT = await fetch('/listar');
+            // TAREFAS
+            const rT = await fetch('/listar_tarefas');
             const tarefas = await rT.json();
             const corpo = document.getElementById('corpo-tarefas');
             corpo.innerHTML = '';
-            
-            let alertaSonoro = false;
+            let bipar = false;
             const agora = new Date();
 
             tarefas.forEach(t => {
-                const concluida = t.status === 1;
-                let classeAlerta = "";
-
-                if (!concluida && t.data) {
+                const conc = t.status === 1;
+                let alerta = "";
+                if(!conc && t.data) {
                     const [d, h] = t.data.split(' ');
                     const [dia, mes, ano] = d.split('/');
                     const [hora, min] = h.split(':');
-                    const dataTarefa = new Date(ano, mes-1, dia, hora, min);
-                    
-                    if (dataTarefa <= agora) {
-                        classeAlerta = "vencida-alerta";
-                        alertaSonoro = true;
-                    }
+                    if(new Date(ano, mes-1, dia, hora, min) <= agora) { alerta = "vencida-alerta"; bipar = true; }
                 }
-
-                corpo.innerHTML += `<tr class="${concluida ? 'concluida' : ''} ${classeAlerta}">
-                    <td><input type="checkbox" ${concluida ? 'checked' : ''} onclick="status(${t.id}, ${concluida ? 0 : 1})"></td>
-                    <td><b>${t.tarefa}</b><br><small>${t.autor} | ${t.setor}</small></td>
-                    <td>${t.data}</td>
+                corpo.innerHTML += `<tr class="${conc?'concluida':''} ${alerta}">
+                    <td><input type="checkbox" ${conc?'checked':''} onclick="mudarStatus(${t.id}, ${conc?0:1})"></td>
+                    <td><b>${t.tarefa}</b><br><small class="text-muted">${t.data}</small></td>
                     <td><span class="badge bg-secondary">${t.nome_resp || '-'}</span></td>
-                    <td>${!concluida && t.zap_resp ? `<button onclick="zap('${t.zap_resp}', '${t.tarefa}')" class="btn btn-sm btn-success py-0">Zap</button>` : ''}</td>
+                    <td>${!conc && t.zap_resp ? `<button onclick="window.open('https://wa.me/55${t.zap_resp}')" class="btn btn-sm btn-success py-0">Zap</button>` : ''}</td>
                 </tr>`;
             });
+            if(bipar) document.getElementById('beep').play().catch(()=>{});
 
-            if (alertaSonoro) document.getElementById('audio-beep').play().catch(() => {});
+            // SETORES
+            const rS = await fetch('/listar_setores');
+            const setores = await rS.json();
+            const selU = document.getElementById('u-setor');
+            if(selU) {
+                selU.innerHTML = '';
+                setores.forEach(s => selU.innerHTML += `<option value="${s}">${s}</option>`);
+            }
 
-            // 2. Carregar Equipe e Médicos (omitido detalhe por brevidade, mas segue lógica anterior)
-            const rE = await fetch('/listar_equipe_completa');
+            // EQUIPE
+            const rE = await fetch('/listar_equipe');
             const equipe = await rE.json();
-            const selResp = document.getElementById('t-resp');
-            const divEq = document.getElementById('lista-equipe');
-            if(selResp) selResp.innerHTML = '<option value="">Responsável</option>';
-            if(divEq) divEq.innerHTML = '';
+            document.getElementById('t-resp').innerHTML = '<option value="">Responsável</option>';
+            equipe.forEach(e => document.getElementById('t-resp').innerHTML += `<option value="${e.id}">${e.nome}</option>`);
 
-            equipe.forEach(e => {
-                if(selResp) selResp.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
-                if(divEq) divEq.innerHTML += `<div class="d-flex justify-content-between small border-bottom py-1">
-                    <span>${e.nome} <span class="badge-setor">${e.setor}</span></span>
-                    <button onclick="removerEq(${e.id})" class="btn btn-sm text-danger p-0">×</button>
-                </div>`;
-            });
-
-            // 3. Carregar Médicos (se for faturamento)
-            const divMed = document.getElementById('lista-medicos');
-            if(divMed) {
+            // MÉDICOS
+            const divM = document.getElementById('lista-medicos');
+            if(divM) {
                 const rM = await fetch('/listar_medicos');
                 const medicos = await rM.json();
-                divMed.innerHTML = '';
+                divM.innerHTML = '';
                 medicos.forEach(m => {
-                    divMed.innerHTML += `<div class="bg-white p-2 mb-1 rounded text-dark d-flex justify-content-between align-items-center">
+                    divM.innerHTML += `<div class="bg-white p-2 mb-1 rounded text-dark d-flex justify-content-between align-items-center">
                         <small><b>${m.nome}</b></small>
-                        <button onclick="zapMed('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary py-0 px-2">Zap</button>
+                        <button onclick="zapMed('${m.zap}','${m.nome}')" class="btn btn-sm btn-primary py-0 px-2">Zap</button>
                     </div>`;
                 });
             }
         }
 
         async function salvarTarefa() {
-            const dataInput = document.getElementById('t-data').value;
-            const d = {
-                tarefa: document.getElementById('t-nome').value,
-                data: dataInput ? new Date(dataInput).toLocaleString('pt-BR').replace(',','') : '',
-                responsavel_id: document.getElementById('t-resp').value
-            };
-            await fetch('/salvar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
-            document.getElementById('t-nome').value = '';
-            carregarTudo();
+            const dt = document.getElementById('t-data').value;
+            const d = { tarefa: document.getElementById('t-nome').value, data: dt ? new Date(dt).toLocaleString('pt-BR').replace(',','') : '', responsavel_id: document.getElementById('t-resp').value };
+            await fetch('/salvar_tarefa', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
+            document.getElementById('t-nome').value = ''; carregarTudo();
+        }
+
+        async function cadastrarMedico() {
+            const d = { nome: document.getElementById('m-nome').value, whatsapp: document.getElementById('m-zap').value };
+            await fetch('/cadastrar_medico', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
+            document.getElementById('m-nome').value = ''; document.getElementById('m-zap').value = ''; carregarTudo();
         }
 
         async function cadastrarEquipe() {
-            const d = {
-                nome: document.getElementById('eq-nome').value,
-                usuario: document.getElementById('eq-user').value,
-                senha: document.getElementById('eq-senha').value,
-                whatsapp: document.getElementById('eq-zap').value,
-                setor: document.getElementById('eq-setor').value,
-                nivel: document.getElementById('eq-nivel').value
-            };
+            const d = { nome: document.getElementById('u-nome').value, usuario: document.getElementById('u-login').value, senha: document.getElementById('u-senha').value, setor: document.getElementById('u-setor').value, whatsapp: document.getElementById('u-zap').value, nivel: 'Auxiliar' };
             await fetch('/cadastrar_equipe', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
             carregarTudo();
         }
 
-        async function status(id, s) { await fetch(`/atualizar_status/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
-        function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(m)}`, '_blank'); }
+        async function criarSetor() {
+            const nome = document.getElementById('new-setor').value;
+            await fetch('/cadastrar_setor', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome})});
+            document.getElementById('new-setor').value = ''; carregarTudo();
+        }
+
+        async function mudarStatus(id, s) { await fetch(`/status_tarefa/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
+        
         function zapMed(n, nome) {
             let msg = document.getElementById('msg-zap').value.replace('{nome}', nome);
-            window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(msg)}`, '_blank');
+            window.open(`https://wa.me/55${n}?text=${encodeURIComponent(msg)}`);
         }
-        async function removerEq(id) { if(confirm("Remover?")) { await fetch(`/deletar_equipe/${id}`, {method:'DELETE'}); carregarTudo(); } }
 
-        setInterval(carregarTudo, 30000); // Check automático a cada 30s
+        setInterval(carregarTudo, 30000);
         carregarTudo();
     </script>
 </body>
