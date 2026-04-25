@@ -2,104 +2,101 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Painel CBN - Faturamento</title>
+    <title>CBN - {{ setor }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root {
-            --cor-fundo: #fdfaf5;
-            --cor-principal: #4a2c2a; /* Castanho */
-            --cor-destaque-gold: #c99c33; /* Dourado */
-            --cor-destaque-terra: #a87b5a; /* Terracota */
+        :root { --cor-fundo: #fdfaf5; --cor-principal: #4a2c2a; --cor-gold: #c99c33; --cor-terra: #a87b5a; }
+        body { background-color: var(--cor-fundo); font-family: 'Segoe UI', sans-serif; color: #333; }
+        .header-cbn { background-color: var(--cor-principal); color: white; padding: 15px; border-bottom: 5px solid var(--cor-terra); }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        
+        /* ALERTA VISUAL */
+        .vencida-alerta { 
+            background-color: #fff0f0 !important; 
+            border-left: 6px solid #ff4d4d !important;
+            animation: pulse-red 2s infinite;
         }
-        body { background-color: var(--cor-fundo); color: #212529; font-family: 'Segoe UI', sans-serif; }
-        .header-cbn { background-color: var(--cor-principal); color: white; border-bottom: 5px solid var(--cor-destaque-terra); padding: 15px; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
-        .secao-medico { background-color: var(--cor-destaque-gold); border-radius: 12px; padding: 20px; color: white; }
-        .sessao-config { background-color: #f1ede4; border-radius: 12px; padding: 25px; margin-top: 40px; margin-bottom: 50px; }
+        @keyframes pulse-red { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+        .concluida { opacity: 0.4; text-decoration: line-through; background: #eee !important; animation: none !important; border: none !important; }
+        
         .btn-primary { background-color: var(--cor-principal); border: none; }
-        .btn-warning { background-color: var(--cor-destaque-terra); border: none; color: white; }
-        .concluida { background: #f8f9fa; opacity: 0.5; text-decoration: line-through; }
-        .agenda-lista { max-height: 250px; overflow-y: auto; background: white; border-radius: 8px; border: 1px solid #e1dbcf; }
-        .text-primary { color: var(--cor-principal) !important; }
-        .text-secondary { color: var(--cor-destaque-terra) !important; }
+        .sessao-config { background-color: #f1ede4; border-radius: 15px; padding: 25px; margin-top: 30px; }
+        .badge-setor { font-size: 0.65rem; background: var(--cor-terra); color: white; padding: 2px 5px; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <div class="header-cbn mb-4 shadow-sm">
+    <audio id="audio-beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
+
+    <div class="header-cbn mb-4 shadow">
         <div class="container d-flex justify-content-between align-items-center">
-            <h4 class="m-0 fw-bold">📍 Painel CBN - {{ nivel }}</h4>
-            <div><span>{{ user_nome }}</span> | <a href="/logout" class="btn btn-sm btn-outline-light ms-2">Sair</a></div>
+            <h4 class="m-0 fw-bold">📍 PAINEL {{ setor | upper }}</h4>
+            <div><span>Bem-vindo, <b>{{ user_nome }}</b></span> <a href="/logout" class="btn btn-sm btn-outline-light ms-3">Sair</a></div>
         </div>
     </div>
 
     <div class="container">
         <div class="row">
             <div class="col-md-8">
-                <div class="card p-4 mb-4">
-                    <h6 class="fw-bold text-primary">📤 AGENDAR TAREFA</h6>
-                    <div class="row g-2 mt-1">
-                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="Descrição..."></div>
-                        <div class="col-md-3"><input type="datetime-local" id="t-data" class="form-control" onchange="validarData(this.value)"></div>
+                <div class="card p-4">
+                    <h6 class="fw-bold">📤 NOVA TAREFA NO SETOR</h6>
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="O que precisa ser feito?"></div>
+                        <div class="col-md-3"><input type="datetime-local" id="t-data" class="form-control"></div>
                         <div class="col-md-3"><select id="t-resp" class="form-select"><option value="">Responsável</option></select></div>
-                        <div class="col-md-12 text-end mt-2"><button onclick="salvarTarefa()" class="btn btn-primary px-4">SALVAR</button></div>
+                        <div class="col-md-12 text-end mt-2"><button onclick="salvarTarefa()" class="btn btn-primary px-4">AGENDAR</button></div>
                     </div>
                 </div>
 
                 <div class="card p-3">
-                    <h6 class="fw-bold mb-3 text-primary">📋 TAREFAS ATIVAS</h6>
-                    <table class="table table-hover align-middle small">
-                        <thead class="table-light"><tr><th>Status</th><th>Tarefa</th><th>Prazo</th><th>Resp.</th><th>Ação</th></tr></thead>
+                    <h6 class="fw-bold mb-3">📋 TAREFAS DO DIA</h6>
+                    <table class="table table-sm table-hover align-middle">
+                        <thead class="table-light"><tr><th>ST</th><th>Tarefa</th><th>Prazo</th><th>Resp.</th><th>Ação</th></tr></thead>
                         <tbody id="corpo-tarefas"></tbody>
                     </table>
                 </div>
             </div>
 
             <div class="col-md-4">
-                <div class="secao-medico shadow-sm">
-                    <h6 class="fw-bold">🩺 COBRANÇA DE MÉDICOS</h6>
-                    <div class="mt-3 mb-3">
-                        <label class="small fw-bold">Mensagem Padrão (Edite se necessário):</label>
-                        <textarea id="msg-padrao-medico" class="form-control form-control-sm" rows="4">Prezado(a) Dr(a). {nome}, faturamento CBN solicita relatório mensal de produção.</textarea>
-                    </div>
-                    <div id="lista-medicos-cobranca"></div>
+                {% if setor == 'Faturamento' or nivel == 'Admin' %}
+                <div class="card p-3" style="background: var(--cor-gold); color: white;">
+                    <h6 class="fw-bold">🩺 COBRANÇA MÉDICA</h6>
+                    <textarea id="msg-zap" class="form-control form-control-sm mb-2" rows="3">Dr(a). {nome}, faturamento CBN solicita o envio do relatório.</textarea>
+                    <div id="lista-medicos"></div>
                 </div>
+                {% endif %}
             </div>
         </div>
 
-        {% if nivel in ['Admin', 'Coordenador'] %}
+        {% if nivel == 'Admin' %}
         <div class="sessao-config shadow-sm">
-            <h5 class="fw-bold mb-4 text-secondary">⚙️ GESTÃO DO SISTEMA</h5>
+            <h5 class="fw-bold mb-3 text-brown">⚙️ GESTÃO DE ACESSOS (SISTEMA)</h5>
             <div class="row">
-                
                 <div class="col-md-4 border-end">
-                    {% if nivel == 'Admin' %}
-                    <h6 class="fw-bold text-primary">👥 Novo Perfil de Acesso</h6>
-                    <input type="text" id="eq-nome" class="form-control mb-2 form-control-sm" placeholder="Nome">
-                    <input type="text" id="eq-user" class="form-control mb-2 form-control-sm" placeholder="Login">
-                    <input type="text" id="eq-senha" class="form-control mb-2 form-control-sm" placeholder="Senha (Visível)">
-                    <input type="text" id="eq-zap" class="form-control mb-2 form-control-sm" placeholder="WhatsApp">
-                    <select id="eq-nivel" class="form-select mb-2 form-select-sm">
+                    <h6 class="fw-bold">👤 Criar Novo Acesso</h6>
+                    <input type="text" id="eq-nome" class="form-control form-control-sm mb-2" placeholder="Nome Completo">
+                    <input type="text" id="eq-user" class="form-control form-control-sm mb-2" placeholder="Usuário (Login)">
+                    <input type="text" id="eq-senha" class="form-control form-control-sm mb-2" placeholder="Senha (Visível)">
+                    <input type="text" id="eq-zap" class="form-control form-control-sm mb-2" placeholder="WhatsApp">
+                    
+                    <small class="fw-bold">Setor de Atuação:</small>
+                    <select id="eq-setor" class="form-select form-select-sm mb-2">
+                        <option value="Faturamento">Faturamento</option>
+                        <option value="Financeiro">Financeiro</option>
+                        <option value="RH">RH</option>
+                        <option value="Recepção">Recepção</option>
+                    </select>
+
+                    <small class="fw-bold">Nível de Permissão:</small>
+                    <select id="eq-nivel" class="form-select form-select-sm mb-3">
                         <option value="Auxiliar">Auxiliar</option>
                         <option value="Coordenador">Coordenador</option>
                         <option value="Admin">Admin</option>
                     </select>
-                    <button onclick="cadastrarEquipe()" class="btn btn-sm btn-dark w-100">CADASTRAR</button>
-                    {% else %}
-                    <p class="text-muted small text-center py-4">Acesso restrito para criação de perfis.</p>
-                    {% endif %}
+                    <button onclick="cadastrarEquipe()" class="btn btn-dark btn-sm w-100">SALVAR PERFIL</button>
                 </div>
-                
-                <div class="col-md-4 border-end px-4">
-                    <h6 class="fw-bold text-primary">📋 Agenda Equipe</h6>
-                    <div class="agenda-lista border p-2" id="corpo-equipe"></div>
-                </div>
-
-                <div class="col-md-4">
-                    <h6 class="fw-bold text-primary">🩺 Adicionar Médico</h6>
-                    <input type="text" id="med-nome" class="form-control mb-2 form-control-sm" placeholder="Nome do Médico">
-                    <input type="text" id="med-crm" class="form-control mb-2 form-control-sm" placeholder="CRM">
-                    <input type="text" id="med-zap" class="form-control mb-2 form-control-sm" placeholder="WhatsApp">
-                    <button onclick="cadastrarMedico()" class="btn btn-sm btn-warning w-100">SALVAR MÉDICO</button>
+                <div class="col-md-8 px-4">
+                    <h6 class="fw-bold">👥 Usuários Cadastrados</h6>
+                    <div id="lista-equipe" class="bg-white p-2 border rounded" style="max-height: 250px; overflow-y: auto;"></div>
                 </div>
             </div>
         </div>
@@ -107,100 +104,108 @@
     </div>
 
     <script>
-        const MEU_NIVEL = "{{ nivel }}";
-
         async function carregarTudo() {
-            // Listar Tarefas
+            // 1. Carregar Tarefas e Checar Alertas
             const rT = await fetch('/listar');
             const tarefas = await rT.json();
             const corpo = document.getElementById('corpo-tarefas');
             corpo.innerHTML = '';
+            
+            let alertaSonoro = false;
+            const agora = new Date();
+
             tarefas.forEach(t => {
-                const isC = t.status === 1;
-                corpo.innerHTML += `<tr class="${isC?'concluida':''}">
-                    <td><input type="checkbox" ${isC?'checked':''} onclick="status(${t.id}, ${isC?0:1})"></td>
-                    <td><b>${t.tarefa}</b><br><small>Por: ${t.autor}</small></td>
+                const concluida = t.status === 1;
+                let classeAlerta = "";
+
+                if (!concluida && t.data) {
+                    const [d, h] = t.data.split(' ');
+                    const [dia, mes, ano] = d.split('/');
+                    const [hora, min] = h.split(':');
+                    const dataTarefa = new Date(ano, mes-1, dia, hora, min);
+                    
+                    if (dataTarefa <= agora) {
+                        classeAlerta = "vencida-alerta";
+                        alertaSonoro = true;
+                    }
+                }
+
+                corpo.innerHTML += `<tr class="${concluida ? 'concluida' : ''} ${classeAlerta}">
+                    <td><input type="checkbox" ${concluida ? 'checked' : ''} onclick="status(${t.id}, ${concluida ? 0 : 1})"></td>
+                    <td><b>${t.tarefa}</b><br><small>${t.autor} | ${t.setor}</small></td>
                     <td>${t.data}</td>
-                    <td><span class="badge bg-secondary">${t.nome_resp || 'Geral'}</span></td>
-                    <td>${!isC && t.zap_resp ? `<button onclick="zap('${t.zap_resp}', '${t.tarefa}')" class="btn btn-sm btn-success py-0">Zap</button>` : ''}</td>
+                    <td><span class="badge bg-secondary">${t.nome_resp || '-'}</span></td>
+                    <td>${!concluida && t.zap_resp ? `<button onclick="zap('${t.zap_resp}', '${t.tarefa}')" class="btn btn-sm btn-success py-0">Zap</button>` : ''}</td>
                 </tr>`;
             });
 
-            // Listar Médicos
-            const rM = await fetch('/listar_medicos');
-            const medicos = await rM.json();
-            const divM = document.getElementById('lista-medicos-cobranca');
-            divM.innerHTML = '';
-            medicos.forEach(m => {
-                divM.innerHTML += `<div class="bg-white p-2 mb-2 rounded border d-flex justify-content-between align-items-center text-dark shadow-sm">
-                    <small><b>Dr. ${m.nome}</b></small>
-                    <div>
-                        <button onclick="zapMedico('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary py-0">Zap</button>
-                        ${MEU_NIVEL === 'Admin' ? `<button onclick="removerMedico(${m.id})" class="btn btn-sm btn-link text-danger p-0 ms-1">🗑️</button>` : ''}
-                    </div>
+            if (alertaSonoro) document.getElementById('audio-beep').play().catch(() => {});
+
+            // 2. Carregar Equipe e Médicos (omitido detalhe por brevidade, mas segue lógica anterior)
+            const rE = await fetch('/listar_equipe_completa');
+            const equipe = await rE.json();
+            const selResp = document.getElementById('t-resp');
+            const divEq = document.getElementById('lista-equipe');
+            if(selResp) selResp.innerHTML = '<option value="">Responsável</option>';
+            if(divEq) divEq.innerHTML = '';
+
+            equipe.forEach(e => {
+                if(selResp) selResp.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
+                if(divEq) divEq.innerHTML += `<div class="d-flex justify-content-between small border-bottom py-1">
+                    <span>${e.nome} <span class="badge-setor">${e.setor}</span></span>
+                    <button onclick="removerEq(${e.id})" class="btn btn-sm text-danger p-0">×</button>
                 </div>`;
             });
 
-            // Listar Equipe
-            const rE = await fetch('/listar_equipe_completa');
-            const equipe = await rE.json();
-            const select = document.getElementById('t-resp');
-            const agenda = document.getElementById('corpo-equipe');
-            if(select) select.innerHTML = '<option value="">Responsável</option>';
-            if(agenda) agenda.innerHTML = '';
-            equipe.forEach(e => {
-                if(select) select.innerHTML += `<option value="${e.id}">${e.nome}</option>`;
-                if(agenda) {
-                    agenda.innerHTML += `<div class="d-flex justify-content-between align-items-center mb-1 border-bottom pb-1">
-                        <small style="font-size: 0.75rem"><b>${e.nome}</b> (${e.nivel})</small>
-                        <div>
-                            <button onclick="zap('${e.whatsapp}', 'Olá!')" class="btn btn-sm p-0 text-success">📞</button>
-                            ${MEU_NIVEL === 'Admin' ? `<button onclick="removerEquipe(${e.id})" class="btn btn-sm p-0 text-danger ms-2">×</button>` : ''}
-                        </div>
+            // 3. Carregar Médicos (se for faturamento)
+            const divMed = document.getElementById('lista-medicos');
+            if(divMed) {
+                const rM = await fetch('/listar_medicos');
+                const medicos = await rM.json();
+                divMed.innerHTML = '';
+                medicos.forEach(m => {
+                    divMed.innerHTML += `<div class="bg-white p-2 mb-1 rounded text-dark d-flex justify-content-between align-items-center">
+                        <small><b>${m.nome}</b></small>
+                        <button onclick="zapMed('${m.zap}', '${m.nome}')" class="btn btn-sm btn-primary py-0 px-2">Zap</button>
                     </div>`;
-                }
-            });
+                });
+            }
         }
 
-        function zapMedico(n, nome) {
-            let texto = document.getElementById('msg-padrao-medico').value.replace('{nome}', nome);
-            window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(texto)}`, '_blank');
-        }
-
-        async function cadastrarMedico() {
-            const d = {nome: document.getElementById('med-nome').value, crm: document.getElementById('med-crm').value, whatsapp: document.getElementById('med-zap').value};
-            await fetch('/cadastrar_medico', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
+        async function salvarTarefa() {
+            const dataInput = document.getElementById('t-data').value;
+            const d = {
+                tarefa: document.getElementById('t-nome').value,
+                data: dataInput ? new Date(dataInput).toLocaleString('pt-BR').replace(',','') : '',
+                responsavel_id: document.getElementById('t-resp').value
+            };
+            await fetch('/salvar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
+            document.getElementById('t-nome').value = '';
             carregarTudo();
         }
 
-        async function removerMedico(id) {
-            if(confirm("Excluir médico?")) { await fetch(`/deletar_medico/${id}`, {method:'DELETE'}); carregarTudo(); }
-        }
-
         async function cadastrarEquipe() {
-            const d = {nome: document.getElementById('eq-nome').value, usuario: document.getElementById('eq-user').value, senha: document.getElementById('eq-senha').value, whatsapp: document.getElementById('eq-zap').value, nivel: document.getElementById('eq-nivel').value};
+            const d = {
+                nome: document.getElementById('eq-nome').value,
+                usuario: document.getElementById('eq-user').value,
+                senha: document.getElementById('eq-senha').value,
+                whatsapp: document.getElementById('eq-zap').value,
+                setor: document.getElementById('eq-setor').value,
+                nivel: document.getElementById('eq-nivel').value
+            };
             await fetch('/cadastrar_equipe', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
             carregarTudo();
         }
 
-        async function removerEquipe(id) {
-            if(confirm("Remover este acesso?")) { await fetch(`/deletar_equipe/${id}`, {method:'DELETE'}); carregarTudo(); }
-        }
-
-        async function salvarTarefa() {
-            const val = document.getElementById('t-data').value;
-            const d = {tarefa: document.getElementById('t-nome').value, data: val ? new Date(val).toLocaleString('pt-BR').replace(',','') : '', responsavel_id: document.getElementById('t-resp').value};
-            await fetch('/salvar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
-            location.reload();
-        }
-
-        function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(m)}`, '_blank'); }
         async function status(id, s) { await fetch(`/atualizar_status/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
-        async function validarData(v) {
-            const r = await fetch('/verificar_data', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({data:v})});
-            const d = await r.json(); if(d.mensagem) alert("⚠️ IA: " + d.mensagem);
+        function zap(n, m) { window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(m)}`, '_blank'); }
+        function zapMed(n, nome) {
+            let msg = document.getElementById('msg-zap').value.replace('{nome}', nome);
+            window.open(`https://api.whatsapp.com/send?phone=55${n}&text=${encodeURIComponent(msg)}`, '_blank');
         }
+        async function removerEq(id) { if(confirm("Remover?")) { await fetch(`/deletar_equipe/${id}`, {method:'DELETE'}); carregarTudo(); } }
 
+        setInterval(carregarTudo, 30000); // Check automático a cada 30s
         carregarTudo();
     </script>
 </body>
