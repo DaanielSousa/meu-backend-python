@@ -1,9 +1,10 @@
 import sqlite3
 from flask import Flask, redirect, url_for, session, request, render_template, jsonify
 from flask_cors import CORS
+from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "cbn_omni_erp_2026_secure"
+app.secret_key = "cbn_omni_erp_2026_final"
 CORS(app)
 
 def conectar_bd():
@@ -20,8 +21,12 @@ def init_db():
                         status INTEGER DEFAULT 0, autor TEXT, responsavel_id INTEGER, setor TEXT)''')
         conn.execute('''CREATE TABLE IF NOT EXISTS medicos 
                         (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT, whatsapp TEXT)''')
+        
+        # NOVA TABELA: Controle de Entrega de Relatórios
+        conn.execute('''CREATE TABLE IF NOT EXISTS controle_relatorios 
+                        (id INTEGER PRIMARY KEY AUTOINCREMENT, medico_id INTEGER, mes_referencia TEXT, entregue INTEGER DEFAULT 0,
+                        FOREIGN KEY(medico_id) REFERENCES medicos(id))''')
 
-        # Dados Iniciais
         setores = ['Faturamento', 'Financeiro', 'RH', 'Recepção']
         for s in setores:
             conn.execute('INSERT OR IGNORE INTO setores (nome) VALUES (?)', (s,))
@@ -33,6 +38,7 @@ def init_db():
 
 init_db()
 
+# --- ROTAS DE LOGIN E PAINEL ---
 @app.route('/')
 def home():
     if 'user' in session: return redirect(url_for('painel'))
@@ -60,61 +66,7 @@ def painel():
     if 'user' not in session: return redirect(url_for('home'))
     return render_template('index.html', user_nome=session['user'], nivel=session['nivel'], setor=session['setor'])
 
-# --- MÓDULO DE SEGURANÇA E HIERARQUIA ---
-
-@app.route('/listar_tarefas')
-def listar_tarefas():
-    s_user, n_user = session.get('setor'), session.get('nivel')
-    with conectar_bd() as conn:
-        c = conn.cursor()
-        # Admin vê TUDO. Coordenador e Auxiliar vêm apenas seu setor.
-        if n_user == 'Admin':
-            c.execute('''SELECT t.id, t.tarefa, t.data, t.status, t.autor, e.nome, e.whatsapp, t.setor 
-                         FROM tarefas t LEFT JOIN equipe e ON t.responsavel_id = e.id 
-                         ORDER BY t.status ASC, t.id DESC''')
-        else:
-            c.execute('''SELECT t.id, t.tarefa, t.data, t.status, t.autor, e.nome, e.whatsapp, t.setor 
-                         FROM tarefas t LEFT JOIN equipe e ON t.responsavel_id = e.id 
-                         WHERE t.setor = ? ORDER BY t.status ASC, t.id DESC''', (s_user,))
-        return jsonify([{"id":t[0],"tarefa":t[1],"data":t[2],"status":t[3],"autor":t[4],"nome_resp":t[5],"zap_resp":t[6], "setor":t[7]} for t in c.fetchall()])
-
-@app.route('/salvar_tarefa', methods=['POST'])
-def salvar_tarefa():
-    d = request.json
-    # Auxiliares podem apenas criar tarefas para si mesmos ou pro setor
-    with conectar_bd() as conn:
-        conn.execute('INSERT INTO tarefas (tarefa, data, autor, responsavel_id, setor) VALUES (?, ?, ?, ?, ?)', 
-                     (d['tarefa'], d['data'], session['user'], d['responsavel_id'], session['setor']))
-        conn.commit()
-    return jsonify({"status": "sucesso"})
-
-@app.route('/cadastrar_equipe', methods=['POST'])
-def cadastrar_equipe():
-    if session.get('nivel') != 'Admin': # Bloqueio de segurança
-        return jsonify({"status":"erro", "msg": "Acesso Negado"}), 403
-    d = request.json
-    with conectar_bd() as conn:
-        conn.execute('INSERT INTO equipe (nome, email, whatsapp, senha, nivel, setor) VALUES (?, ?, ?, ?, ?, ?)', 
-                     (d['nome'], d['usuario'], d['whatsapp'], d['senha'], d['nivel'], d['setor']))
-        conn.commit()
-    return jsonify({"status": "sucesso"})
-
-@app.route('/deletar_equipe/<int:id>', methods=['DELETE'])
-def deletar_equipe(id):
-    if session.get('nivel') != 'Admin': return jsonify({"status":"erro"}), 403
-    with conectar_bd() as conn:
-        conn.execute('DELETE FROM equipe WHERE id = ?', (id,))
-        conn.commit()
-    return jsonify({"status": "sucesso"})
-
-# Outras rotas (Setores, Médicos)
-@app.route('/listar_setores')
-def listar_setores():
-    with conectar_bd() as conn:
-        c = conn.cursor()
-        c.execute('SELECT nome FROM setores')
-        return jsonify([s[0] for s in c.fetchall()])
-
+# --- GESTÃO DE MÉDICOS E RELATÓRIOS ---
 @app.route('/cadastrar_medico', methods=['POST'])
 def cadastrar_medico():
     d = request.json
@@ -123,21 +75,52 @@ def cadastrar_medico():
         conn.commit()
     return jsonify({"status": "sucesso"})
 
-@app.route('/listar_medicos')
-def listar_medicos():
+@app.route('/listar_medicos_status')
+def listar_medicos_status():
+    mes_atual = datetime.now().strftime("%m/%Y")
     with conectar_bd() as conn:
         c = conn.cursor()
-        c.execute('SELECT nome, whatsapp FROM medicos')
-        return jsonify([{"nome":m[0],"zap":m[1]} for m in c.fetchall()])
+        # Busca médicos e verifica se há registro de entrega para o mês atual
+        c.execute('''SELECT m.id, m.nome, m.whatsapp, IFNULL(r.entregue, 0) 
+                     FROM medicos m 
+                     LEFT JOIN controle_relatorios r ON m.id = r.medico_id AND r.mes_referencia = ?''', (mes_atual,))
+        return jsonify([{"id":m[0], "nome":m[1], "zap":m[2], "entregue":m[3]} for m in c.fetchall()])
 
-@app.route('/listar_equipe')
-def listar_equipe():
+@app.route('/marcar_entrega', methods=['POST'])
+def marcar_entrega():
+    d = request.json
+    mes_atual = datetime.now().strftime("%m/%Y")
+    with conectar_bd() as conn:
+        c = conn.cursor()
+        c.execute('SELECT id FROM controle_relatorios WHERE medico_id = ? AND mes_referencia = ?', (d['id'], mes_atual))
+        existe = c.fetchone()
+        if existe:
+            conn.execute('UPDATE controle_relatorios SET entregue = ? WHERE id = ?', (d['status'], existe[0]))
+        else:
+            conn.execute('INSERT INTO controle_relatorios (medico_id, mes_referencia, entregue) VALUES (?, ?, ?)', 
+                         (d['id'], mes_atual, d['status']))
+        conn.commit()
+    return jsonify({"status": "sucesso"})
+
+# --- TAREFAS E EQUIPE (RESUMIDO PARA O POST) ---
+@app.route('/listar_tarefas')
+def listar_tarefas():
     s_user, n_user = session.get('setor'), session.get('nivel')
     with conectar_bd() as conn:
         c = conn.cursor()
-        if n_user == 'Admin': c.execute('SELECT id, nome, setor, nivel FROM equipe')
-        else: c.execute('SELECT id, nome, setor, nivel FROM equipe WHERE setor = ?', (s_user,))
-        return jsonify([{"id":e[0],"nome":e[1],"setor":e[2], "nivel":e[3]} for e in c.fetchall()])
+        if n_user == 'Admin':
+            c.execute('SELECT t.id, t.tarefa, t.data, t.status, t.autor, e.nome, e.whatsapp, t.setor FROM tarefas t LEFT JOIN equipe e ON t.responsavel_id = e.id ORDER BY t.status ASC, t.id DESC')
+        else:
+            c.execute('SELECT t.id, t.tarefa, t.data, t.status, t.autor, e.nome, e.whatsapp, t.setor FROM tarefas t LEFT JOIN equipe e ON t.responsavel_id = e.id WHERE t.setor = ? ORDER BY t.status ASC, t.id DESC', (s_user,))
+        return jsonify([{"id":t[0],"tarefa":t[1],"data":t[2],"status":t[3],"autor":t[4],"nome_resp":t[5],"zap_resp":t[6],"setor":t[7]} for t in c.fetchall()])
+
+@app.route('/salvar_tarefa', methods=['POST'])
+def salvar_tarefa():
+    d = request.json
+    with conectar_bd() as conn:
+        conn.execute('INSERT INTO tarefas (tarefa, data, autor, responsavel_id, setor) VALUES (?, ?, ?, ?, ?)', (d['tarefa'], d['data'], session['user'], d['responsavel_id'], session['setor']))
+        conn.commit()
+    return jsonify({"status": "sucesso"})
 
 @app.route('/status_tarefa/<int:id>', methods=['POST'])
 def status_tarefa(id):
@@ -146,6 +129,31 @@ def status_tarefa(id):
         conn.execute('UPDATE tarefas SET status = ? WHERE id = ?', (s, id))
         conn.commit()
     return jsonify({"status": "sucesso"})
+
+@app.route('/listar_setores')
+def listar_setores():
+    with conectar_bd() as conn:
+        c = conn.cursor()
+        c.execute('SELECT nome FROM setores')
+        return jsonify([s[0] for s in c.fetchall()])
+
+@app.route('/cadastrar_equipe', methods=['POST'])
+def cadastrar_equipe():
+    if session.get('nivel') != 'Admin': return jsonify({"status":"erro"}), 403
+    d = request.json
+    with conectar_bd() as conn:
+        conn.execute('INSERT INTO equipe (nome, email, whatsapp, senha, nivel, setor) VALUES (?, ?, ?, ?, ?, ?)', (d['nome'], d['usuario'], d['whatsapp'], d['senha'], d['nivel'], d['setor']))
+        conn.commit()
+    return jsonify({"status": "sucesso"})
+
+@app.route('/listar_equipe')
+def listar_equipe():
+    s_user, n_user = session.get('setor'), session.get('nivel')
+    with conectar_bd() as conn:
+        c = conn.cursor()
+        if n_user == 'Admin': c.execute('SELECT id, nome, setor FROM equipe')
+        else: c.execute('SELECT id, nome, setor FROM equipe WHERE setor = ?', (s_user,))
+        return jsonify([{"id":e[0],"nome":e[1],"setor":e[2]} for e in c.fetchall()])
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
