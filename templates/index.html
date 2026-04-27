@@ -2,16 +2,26 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>CBN OMNI ERP</title>
+    <title>CBN OMNI ERP - Painel Profissional</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         :root { --c-primary: #4a2c2a; --c-gold: #c99c33; --c-bg: #fdfaf5; }
         body { background: var(--c-bg); font-family: 'Segoe UI', sans-serif; }
         .header { background: var(--c-primary); color: white; padding: 12px; border-bottom: 5px solid #a87b5a; }
-        .vencida-alerta { background-color: #fff0f0 !important; border-left: 6px solid #ff4d4d !important; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .concluida { opacity: 0.4; text-decoration: line-through; background: #eee !important; border: none !important; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        
+        /* Estilo das Abas */
+        .nav-tabs { border-bottom: 2px solid #ddd; }
+        .nav-link { color: #666; fw-bold; }
+        .nav-link.active { color: var(--c-primary) !important; border-bottom: 3px solid var(--c-gold) !important; font-weight: bold; }
+
+        /* Estilo dos Cards */
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); }
+        .card-header { border-radius: 12px 12px 0 0 !important; font-size: 0.85em; }
+        .vencida-alerta { animation: pulse 2s infinite; border: 2px solid #ff4d4d !important; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+        
+        .concluida { opacity: 0.6; grayscale(100%); }
         .badge-nivel { font-size: 0.7em; padding: 3px 8px; border-radius: 20px; }
     </style>
 </head>
@@ -30,142 +40,220 @@
     </div>
 
     <div class="container">
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card p-4 mb-4">
-                    <h6 class="fw-bold">📤 REGISTRAR ATIVIDADE</h6>
-                    <div class="row g-2 mt-1">
-                        <div class="col-md-6"><input type="text" id="t-nome" class="form-control" placeholder="O que deve ser feito?"></div>
-                        <div class="col-md-3"><input type="datetime-local" id="t-data" class="form-control"></div>
-                        <div class="col-md-3"><select id="t-resp" class="form-select"></select></div>
-                        <button onclick="salvarTarefa()" class="btn btn-dark mt-2 fw-bold w-100">ADICIONAR AO FLUXO</button>
-                    </div>
-                </div>
+        <ul class="nav nav-tabs mb-4" id="cbnTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-operacional">Minhas Tarefas</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-medicos">Médicos & Cobrança</button>
+            </li>
+            {% if nivel == 'Admin' %}
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-config">Gestão de Acessos</button>
+            </li>
+            {% endif %}
+        </ul>
 
-                <div class="card p-3">
-                    <h6 class="fw-bold mb-3">📋 QUADRO OPERACIONAL</h6>
-                    <table class="table table-sm align-middle small">
-                        <tbody id="corpo-tarefas"></tbody>
-                    </table>
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="tab-operacional">
+                <div class="row">
+                    <div class="col-md-12 mb-4">
+                        <div class="card p-4">
+                            <h6 class="fw-bold"><i class="bi bi-plus-circle"></i> REGISTRAR NOVA ATIVIDADE</h6>
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-4"><input type="text" id="t-nome" class="form-control" placeholder="O que deve ser feito?"></div>
+                                <div class="col-md-2"><input type="datetime-local" id="t-data" class="form-control"></div>
+                                <div class="col-md-2">
+                                    <select id="t-priority" class="form-select">
+                                        <option value="Baixa">Prioridade Baixa</option>
+                                        <option value="Média" selected>Prioridade Média</option>
+                                        <option value="Alta">Prioridade Alta</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2"><select id="t-resp" class="form-select"></select></div>
+                                <div class="col-md-2"><button onclick="salvarTarefa()" class="btn btn-dark fw-bold w-100">ADICIONAR</button></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-12">
+                        <div class="row" id="container-cards">
+                            </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="col-md-4">
-                {% if setor == 'Faturamento' or nivel == 'Admin' %}
-                <div class="card p-3 text-white" style="background: var(--c-gold);">
-                    <h6 class="fw-bold">🩺 MÉDICOS E COBRANÇA</h6>
-                    <div class="bg-white p-2 rounded mb-3 text-dark">
-                        <input type="text" id="m-nome" class="form-control form-control-sm mb-1" placeholder="Nome">
-                        <input type="text" id="m-zap" class="form-control form-control-sm mb-2" placeholder="WhatsApp">
-                        <button onclick="cadastrarMedico()" class="btn btn-dark btn-sm w-100">CADASTRAR</button>
+            <div class="tab-pane fade" id="tab-medicos">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card p-3 text-white" style="background: var(--c-gold);">
+                            <h6 class="fw-bold">🩺 CADASTRO DE MÉDICOS</h6>
+                            <div class="bg-white p-3 rounded mb-3 text-dark">
+                                <input type="text" id="m-nome" class="form-control mb-1" placeholder="Nome do Médico">
+                                <input type="text" id="m-zap" class="form-control mb-2" placeholder="WhatsApp (ex: 619...)">
+                                <button onclick="cadastrarMedico()" class="btn btn-dark w-100">CADASTRAR MÉDICO</button>
+                            </div>
+                            <textarea id="msg-zap" class="form-control mb-2">Dr(a). {nome}, faturamento CBN solicita relatório.</textarea>
+                            <div id="lista-medicos" class="mt-2" style="max-height: 400px; overflow-y: auto;"></div>
+                        </div>
                     </div>
-                    <textarea id="msg-zap" class="form-control form-control-sm mb-2">Dr(a). {nome}, faturamento CBN solicita relatório.</textarea>
-                    <div id="lista-medicos" style="max-height: 300px; overflow-y: auto;"></div>
                 </div>
-                {% endif %}
             </div>
+
+            {% if nivel == 'Admin' %}
+            <div class="tab-pane fade" id="tab-config">
+                <div class="card p-4">
+                    <h5 class="fw-bold mb-4">⚙️ CONFIGURAÇÕES DO SISTEMA</h5>
+                    <div class="row">
+                        <div class="col-md-4 border-end">
+                            <h6 class="fw-bold small text-primary">CRIAR NOVO USUÁRIO</h6>
+                            <input type="text" id="u-nome" class="form-control form-control-sm mb-1" placeholder="Nome">
+                            <input type="text" id="u-login" class="form-control form-control-sm mb-1" placeholder="Login">
+                            <input type="text" id="u-senha" class="form-control form-control-sm mb-1" placeholder="Senha">
+                            <input type="text" id="u-zap" class="form-control form-control-sm mb-1" placeholder="WhatsApp">
+                            <select id="u-setor" class="form-select form-select-sm mb-1"></select>
+                            <select id="u-nivel" class="form-select form-select-sm mb-2">
+                                <option value="Auxiliar">Auxiliar</option>
+                                <option value="Coordenador">Coordenador</option>
+                                <option value="Admin">Admin</option>
+                            </select>
+                            <button onclick="cadastrarEquipe()" class="btn btn-dark btn-sm w-100">SALVAR ACESSO</button>
+                        </div>
+                        <div class="col-md-8 ps-4">
+                            <h6 class="fw-bold small text-primary">EQUIPE CADASTRADA</h6>
+                            <div id="lista-equipe-completa"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
-
-        {% if nivel == 'Admin' %}
-        <div class="mt-4 p-4 bg-white rounded shadow-sm border">
-            <h5 class="fw-bold text-brown mb-4">⚙️ GESTÃO DE ACESSOS ERP</h5>
-            <div class="row">
-                <div class="col-md-4 border-end">
-                    <h6 class="fw-bold small text-primary">CRIAR SETOR</h6>
-                    <div class="input-group input-group-sm mb-4">
-                        <input type="text" id="new-setor" class="form-control" placeholder="Nome do Setor">
-                        <button onclick="criarSetor()" class="btn btn-primary">ADICIONAR</button>
-                    </div>
-
-                    <h6 class="fw-bold small text-primary">CRIAR USUÁRIO</h6>
-                    <input type="text" id="u-nome" class="form-control form-control-sm mb-1" placeholder="Nome">
-                    <input type="text" id="u-login" class="form-control form-control-sm mb-1" placeholder="Login">
-                    <input type="text" id="u-senha" class="form-control form-control-sm mb-1" placeholder="Senha">
-                    <input type="text" id="u-zap" class="form-control form-control-sm mb-1" placeholder="WhatsApp">
-                    <select id="u-setor" class="form-select form-select-sm mb-1"></select>
-                    <select id="u-nivel" class="form-select form-select-sm mb-2">
-                        <option value="Auxiliar">Auxiliar</option>
-                        <option value="Coordenador">Coordenador</option>
-                        <option value="Admin">Admin</option>
-                    </select>
-                    <button onclick="cadastrarEquipe()" class="btn btn-dark btn-sm w-100">SALVAR ACESSO</button>
-                </div>
-                <div class="col-md-8 ps-4">
-                    <h6 class="fw-bold small text-primary">USUÁRIOS ATIVOS</h6>
-                    <div id="lista-equipe-completa" class="small"></div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         async function carregarTudo() {
-            // TAREFAS + ALERTA
             const rT = await fetch('/listar_tarefas');
             const tarefas = await rT.json();
-            const corpo = document.getElementById('corpo-tarefas');
-            corpo.innerHTML = '';
+            const container = document.getElementById('container-cards');
+            container.innerHTML = '';
+            
             let bip = false;
             const agora = new Date();
 
             tarefas.forEach(t => {
                 const conc = t.status === 1;
-                let alerta = "";
+                let alertaClasse = "";
+                
+                // Lógica de Alerta de Atraso
                 if(!conc && t.data) {
-                    const [d, h] = t.data.split(' ');
-                    const [dia, mes, ano] = d.split('/');
-                    const [hora, min] = h.split(':');
-                    if(new Date(ano, mes-1, dia, hora, min) <= agora) { alerta = "vencida-alerta"; bip = true; }
+                    const partes = t.data.split(' '); // "dd/mm/aaaa hh:mm:ss"
+                    const d = partes[0].split('/');
+                    const h = partes[1].split(':');
+                    const dataVenc = new Date(d[2], d[1]-1, d[0], h[0], h[1]);
+                    
+                    if(dataVenc <= agora) { 
+                        alertaClasse = "vencida-alerta"; 
+                        bip = true; 
+                    }
                 }
-                corpo.innerHTML += `<tr class="${conc?'concluida':''} ${alerta}">
-                    <td><input type="checkbox" ${conc?'checked':''} onclick="mudarStatus(${t.id}, ${conc?0:1})"></td>
-                    <td><b>${t.tarefa}</b><br><small class="text-muted">${t.data} | Setor: ${t.setor}</small></td>
-                    <td><span class="badge bg-secondary">${t.nome_resp || '-'}</span></td>
-                    <td>${!conc && t.zap_resp ? `<button onclick="window.open('https://wa.me/55${t.zap_resp}')" class="btn btn-sm btn-success py-0">Zap</button>` : ''}</td>
-                </tr>`;
+
+                // Cor do Header baseada na prioridade
+                let corHeader = t.prioridade === 'Alta' ? 'bg-danger text-white' : (t.prioridade === 'Média' ? 'bg-warning text-dark' : 'bg-secondary text-white');
+                if(conc) corHeader = 'bg-success text-white';
+
+                container.innerHTML += `
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100 ${conc ? 'concluida' : alertaClasse}">
+                            <div class="card-header ${corHeader} fw-bold d-flex justify-content-between">
+                                ${t.prioridade.toUpperCase()} <span>#${t.id}</span>
+                            </div>
+                            <div class="card-body">
+                                <h6 class="fw-bold mb-1">${t.tarefa}</h6>
+                                <p class="small text-muted mb-2">
+                                    <b>Prazo:</b> ${t.data}<br>
+                                    <b>Setor:</b> ${t.setor}
+                                </p>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" ${conc ? 'checked' : ''} 
+                                           onclick="mudarStatus(${t.id}, ${conc ? 0 : 1})">
+                                    <label class="form-check-label small fw-bold">Marcar Concluída</label>
+                                </div>
+                            </div>
+                            <div class="card-footer bg-white border-0 d-flex justify-content-between">
+                                <small class="text-muted">Resp: ${t.nome_resp || '-'}</small>
+                                <button onclick="window.open('https://wa.me/55${t.zap_autor}?text=Olá, a tarefa ${t.tarefa} foi concluída!')" 
+                                        class="btn btn-link btn-sm p-0 text-decoration-none">[WhatsApp Autor]</button>
+                            </div>
+                        </div>
+                    </div>`;
             });
+
             if(bip) document.getElementById('beep').play().catch(()=>{});
 
-            // SETORES (PARA ADMIN)
-            const rS = await fetch('/listar_setores');
-            const setores = await rS.json();
-            const selU = document.getElementById('u-setor');
-            if(selU) {
-                selU.innerHTML = '';
-                setores.forEach(s => selU.innerHTML += `<option value="${s}">${s}</option>`);
-            }
-
-            // EQUIPE (ADMIN E RESPONSÁVEL)
+            // Recarregar Selects de Equipe e Setores
             const rE = await fetch('/listar_equipe');
             const equipe = await rE.json();
-            document.getElementById('t-resp').innerHTML = '<option value="">Responsável</option>';
+            const rS = await fetch('/listar_setores');
+            const setores = await rS.json();
+
+            // Popular Responsáveis no formulário
+            const selResp = document.getElementById('t-resp');
+            selResp.innerHTML = '<option value="">Responsável</option>';
+            equipe.forEach(e => selResp.innerHTML += `<option value="${e.id}">${e.nome}</option>`);
+
+            // Popular Setores (se admin)
+            const selS = document.getElementById('u-setor');
+            if(selS) {
+                selS.innerHTML = '';
+                setores.forEach(s => selS.innerHTML += `<option value="${s}">${s}</option>`);
+            }
+
+            // Lista de Equipe Completa (se admin)
             const divEq = document.getElementById('lista-equipe-completa');
-            if(divEq) divEq.innerHTML = '';
+            if(divEq) {
+                divEq.innerHTML = '';
+                equipe.forEach(e => {
+                    divEq.innerHTML += `
+                        <div class="d-flex justify-content-between border-bottom py-1 small">
+                            <span><b>${e.nome}</b> (${e.setor}) - ${e.nivel}</span>
+                            <button onclick="removerEq(${e.id})" class="btn btn-sm text-danger p-0">Remover</button>
+                        </div>`;
+                });
+            }
 
-            equipe.forEach(e => {
-                document.getElementById('t-resp').innerHTML += `<option value="${e.id}">${e.nome}</option>`;
-                if(divEq) {
-                    divEq.innerHTML += `<div class="d-flex justify-content-between border-bottom py-1">
-                        <span><b>${e.nome}</b> (${e.setor}) - <small>${e.nivel}</small></span>
-                        <button onclick="removerEq(${e.id})" class="btn btn-sm text-danger p-0">Remover</button>
-                    </div>`;
-                }
-            });
-
-            // MÉDICOS
+            // Lista de Médicos
             const divM = document.getElementById('lista-medicos');
             if(divM) {
                 const rM = await fetch('/listar_medicos');
                 const medicos = await rM.json();
                 divM.innerHTML = '';
                 medicos.forEach(m => {
-                    divM.innerHTML += `<div class="bg-white p-2 mb-1 rounded text-dark d-flex justify-content-between align-items-center">
-                        <small><b>${m.nome}</b></small>
-                        <button onclick="zapMed('${m.zap}','${m.nome}')" class="btn btn-sm btn-primary py-0 px-2">Zap</button>
-                    </div>`;
+                    divM.innerHTML += `
+                        <div class="bg-white p-2 mb-1 rounded text-dark d-flex justify-content-between align-items-center shadow-sm">
+                            <small><b>${m.nome}</b></small>
+                            <button onclick="zapMed('${m.zap}','${m.nome}')" class="btn btn-sm btn-primary py-0 px-2">Zap</button>
+                        </div>`;
                 });
             }
+        }
+
+        async function salvarTarefa() {
+            const dt = document.getElementById('t-data').value;
+            const d = { 
+                tarefa: document.getElementById('t-nome').value, 
+                data: dt ? new Date(dt).toLocaleString('pt-BR').replace(',','') : '', 
+                prioridade: document.getElementById('t-priority').value,
+                responsavel_id: document.getElementById('t-resp').value 
+            };
+            await fetch('/salvar_tarefa', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
+            document.getElementById('t-nome').value = ''; 
+            carregarTudo();
+        }
+
+        async function mudarStatus(id, s) { 
+            await fetch(`/status_tarefa/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); 
+            carregarTudo(); 
         }
 
         async function cadastrarEquipe() {
@@ -174,30 +262,19 @@
             carregarTudo();
         }
 
-        async function removerEq(id) { if(confirm("Remover acesso?")) { await fetch(`/deletar_equipe/${id}`, {method:'DELETE'}); carregarTudo(); } }
-
-        // Funções de salvar tarefa, médico e setor permanecem como no código anterior...
-        async function salvarTarefa() {
-            const dt = document.getElementById('t-data').value;
-            const d = { tarefa: document.getElementById('t-nome').value, data: dt ? new Date(dt).toLocaleString('pt-BR').replace(',','') : '', responsavel_id: document.getElementById('t-resp').value };
-            await fetch('/salvar_tarefa', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
-            document.getElementById('t-nome').value = ''; carregarTudo();
-        }
-        async function mudarStatus(id, s) { await fetch(`/status_tarefa/${id}`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:s})}); carregarTudo(); }
         async function cadastrarMedico() {
             const d = { nome: document.getElementById('m-nome').value, whatsapp: document.getElementById('m-zap').value };
             await fetch('/cadastrar_medico', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(d)});
-            document.getElementById('m-nome').value = ''; document.getElementById('m-zap').value = ''; carregarTudo();
+            document.getElementById('m-nome').value = ''; document.getElementById('m-zap').value = ''; 
+            carregarTudo();
         }
-        async function criarSetor() {
-            const nome = document.getElementById('new-setor').value;
-            await fetch('/cadastrar_setor', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({nome})});
-            document.getElementById('new-setor').value = ''; carregarTudo();
-        }
+
         function zapMed(n, nome) {
             let msg = document.getElementById('msg-zap').value.replace('{nome}', nome);
             window.open(`https://wa.me/55${n}?text=${encodeURIComponent(msg)}`);
         }
+
+        async function removerEq(id) { if(confirm("Remover acesso?")) { await fetch(`/deletar_equipe/${id}`, {method:'DELETE'}); carregarTudo(); } }
 
         setInterval(carregarTudo, 30000);
         carregarTudo();
